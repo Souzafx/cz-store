@@ -201,6 +201,14 @@ function openModal(product = null, defaultType = "resale") {
   const typeRadio = document.querySelector(`input[name="f-type"][value="${productType}"]`);
   if (typeRadio) typeRadio.checked = true;
   applyTypeVisibility(productType);
+
+  // Esconde a opção do OUTRO tipo no seletor — você sempre cria a partir
+  // de uma página específica (Revenda ou Impressão 3D), então a outra
+  // opção seria confusa. Em edição o tipo é fixo também.
+  document.querySelectorAll(".type-option").forEach((opt) => {
+    const radio = opt.querySelector('input[name="f-type"]');
+    opt.style.display = radio.value === productType ? "" : "none";
+  });
   galleryImagesValue = product && Array.isArray(product.galleryImages)
     ? [...product.galleryImages]
     : [];

@@ -1022,7 +1022,7 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 /* ===================== SELETOR DE TIPO DE PRODUTO ===================== */
 .type-selector {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
