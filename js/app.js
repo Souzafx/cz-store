@@ -156,19 +156,27 @@ let editingPurchaseId = null;
 let editingPurchaseProductId = null;
 
 // ---------- Navegação entre views ----------
-$$(".nav-link").forEach((link) => {
+let currentView = "dashboard";
+
+$$(".nav-link[data-view]").forEach((link) => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     const view = link.dataset.view;
+    currentView = view;
+
     $$(".nav-link").forEach((l) => l.classList.remove("active"));
     link.classList.add("active");
+
     $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
     $("#view-produtos").classList.toggle("hidden", view !== "produtos");
+    $("#view-impressao3d").classList.toggle("hidden", view !== "impressao3d");
     $("#view-historico").classList.toggle("hidden", view !== "historico");
+
     const titles = {
-      dashboard: ["Dashboard", "Resumo financeiro da sua loja"],
-      produtos: ["Produtos", "Gerencie seu catálogo completo"],
-      historico: ["Histórico de Compras", "Linha do tempo de todas as compras"],
+      dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
+      produtos:    ["Produtos de Revenda", "Itens comprados prontos para revender"],
+      impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
+      historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
     };
     const [t, s] = titles[view] || titles.dashboard;
     $("#view-title").textContent = t;
@@ -183,13 +191,13 @@ $$(".nav-link").forEach((link) => {
 // ==============================================================
 const modal = $("#modal");
 
-function openModal(product = null) {
+function openModal(product = null, defaultType = "resale") {
   editingId = product ? product.id : null;
   photoDataUrl = product ? product.photo || null : null;
   imageUrlValue = product ? (product.imageUrl || "") : "";
 
-  // Tipo do produto — default "resale" em novo cadastro
-  const productType = product?.type || "resale";
+  // Tipo do produto — usa defaultType quando criando novo
+  const productType = product?.type || defaultType;
   const typeRadio = document.querySelector(`input[name="f-type"][value="${productType}"]`);
   if (typeRadio) typeRadio.checked = true;
   applyTypeVisibility(productType);
@@ -313,7 +321,11 @@ function closeModal() {
   photoDataUrl = null;
 }
 
-$("#btn-new").addEventListener("click", () => openModal());
+$("#btn-new").addEventListener("click", () => {
+  // Se estou na página de Impressão 3D, abre já com tipo "3d_print" pré-selecionado
+  const defaultType = currentView === "impressao3d" ? "3d_print" : "resale";
+  openModal(null, defaultType);
+});
 $("#modal-close").addEventListener("click", closeModal);
 $("#btn-cancel").addEventListener("click", closeModal);
 
@@ -323,20 +335,17 @@ document.querySelectorAll('input[name="f-type"]').forEach((radio) => {
   radio.addEventListener("change", () => {
     if (editingId) return; // não permite trocar tipo de produto existente
     applyTypeVisibility(radio.value);
-    // Re-dispara openModal(null) com defaults, preservando só nome/desc já digitados
+    // Re-dispara openModal(null) passando o NOVO tipo como default,
+    // preservando só nome/desc/link já digitados
     const preserved = {
       name: $("#f-name").value,
       description: $("#f-description").value,
       link: $("#f-link").value,
     };
-    openModal(null);
+    openModal(null, radio.value);
     $("#f-name").value = preserved.name;
     $("#f-description").value = preserved.description;
     $("#f-link").value = preserved.link;
-    // Re-marca o radio (porque openModal reseta)
-    const r = document.querySelector(`input[name="f-type"][value="${radio.value}"]`);
-    if (r) r.checked = true;
-    applyTypeVisibility(radio.value);
   });
 });
 
@@ -1441,17 +1450,36 @@ $("#production-form").addEventListener("submit", (e) => {
 // ==============================================================
 // FILTROS / BUSCA / ORDENAÇÃO
 // ==============================================================
-$("#search").addEventListener("input", render);
-$("#sort").addEventListener("change", render);
-$("#filter-profit").addEventListener("change", render);
+// Revenda — inputs com sufixo "" (os IDs originais)
+["#search", "#sort", "#filter-profit"].forEach((sel) => {
+  $(sel).addEventListener("input", render);
+  $(sel).addEventListener("change", render);
+});
+// Impressão 3D — inputs com sufixo "-3d"
+["#search-3d", "#sort-3d", "#filter-profit-3d"].forEach((sel) => {
+  $(sel).addEventListener("input", render);
+  $(sel).addEventListener("change", render);
+});
 
-function getFilteredProducts() {
+/**
+ * Filtra produtos por tipo + aplica busca/filtro/ordenação dos inputs
+ * correspondentes.
+ *
+ * @param {"resale"|"3d_print"} productType
+ * @param {""|"-3d"} idSuffix  — sufixo dos IDs dos inputs de filtro
+ */
+function getFilteredProducts(productType = "resale", idSuffix = "") {
   let list = Storage.getAll().map(migrate);
 
-  const q = $("#search").value.toLowerCase().trim();
+  // Filtro por tipo
+  list = list.filter((p) =>
+    productType === "3d_print" ? p.type === "3d_print" : p.type !== "3d_print"
+  );
+
+  const q = $(`#search${idSuffix}`).value.toLowerCase().trim();
   if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
 
-  const filter = $("#filter-profit").value;
+  const filter = $(`#filter-profit${idSuffix}`).value;
   list = list.filter((p) => {
     const c = calcProduct(p);
     if (filter === "positive") return c.totalProfit > 0;
@@ -1460,7 +1488,7 @@ function getFilteredProducts() {
     return true;
   });
 
-  const sort = $("#sort").value;
+  const sort = $(`#sort${idSuffix}`).value;
   list.sort((a, b) => {
     const ca = calcProduct(a);
     const cb = calcProduct(b);
@@ -1479,18 +1507,27 @@ function getFilteredProducts() {
 // RENDER
 // ==============================================================
 function render() {
-  renderCatalog();
+  renderCatalog("resale", "", "#catalog", "#empty-catalog");
+  renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
   renderDashboard();
   if (!$("#view-historico").classList.contains("hidden")) {
     renderHistoryView();
   }
 }
 
-function renderCatalog() {
-  const list = getFilteredProducts();
-  const catalog = $("#catalog");
+/**
+ * Renderiza o catálogo de produtos de um tipo específico num container.
+ *
+ * @param {"resale"|"3d_print"} productType
+ * @param {""|"-3d"} idSuffix — sufixo dos IDs dos inputs de filtro
+ * @param {string} catalogSel — seletor CSS do container da grade
+ * @param {string} emptySel — seletor CSS da mensagem de vazio
+ */
+function renderCatalog(productType = "resale", idSuffix = "", catalogSel = "#catalog", emptySel = "#empty-catalog") {
+  const list = getFilteredProducts(productType, idSuffix);
+  const catalog = $(catalogSel);
   catalog.innerHTML = "";
-  $("#empty-catalog").classList.toggle("hidden", list.length > 0);
+  $(emptySel).classList.toggle("hidden", list.length > 0);
 
   const topIds = new Set(
     Storage.getAll()
