@@ -50,7 +50,13 @@
         <p id="view-subtitle">Resumo financeiro da sua loja</p>
       </div>
       <div class="topbar-actions">
-        <label class="btn btn-ghost" title="Importar planilha Excel (.xlsx)">
+        <!--
+          Botão de importar Excel — OCULTO TEMPORARIAMENTE
+          Para reativar: remova `style="display:none"` da <label> abaixo.
+          O input #import-file e a lógica de importação em js/app.js
+          continuam intactos e funcionando.
+        -->
+        <label class="btn btn-ghost" title="Importar planilha Excel (.xlsx)" style="display:none">
           📥 Importar Excel
           <input type="file" id="import-file" accept=".xlsx,.xls" hidden />
         </label>
