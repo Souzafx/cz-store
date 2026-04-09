@@ -43,6 +43,10 @@ out/
 .env.local
 .env.*.local
 .env.production
+backend/.env
+
+# Permite versionar o template
+!backend/.env.example
 
 # ---- Logs ----
 logs/
@@ -55,7 +59,9 @@ logs/
 .tmp/
 
 # ---- Dados locais / backups ----
-# Planilhas de teste não versionadas
+# Planilhas (contêm dados reais da loja, não devem ir para o GitHub)
+*.xlsx
+*.xls
 *.xlsx.bak
 backup/
 data-local/
