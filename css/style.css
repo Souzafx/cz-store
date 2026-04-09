@@ -1019,6 +1019,85 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   border-top: 1px solid var(--border);
 }
 
+/* ===================== SELETOR DE TIPO DE PRODUTO ===================== */
+.type-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.type-option {
+  position: relative;
+  cursor: pointer;
+}
+.type-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.type-card {
+  padding: 16px 18px;
+  background: var(--bg-soft);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.type-card .type-icon { font-size: 28px; display: block; }
+.type-card b {
+  color: #fff;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.type-card small {
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.type-option input:checked + .type-card {
+  border-color: var(--red);
+  background: linear-gradient(135deg, rgba(229, 9, 20, 0.12), var(--bg-soft));
+  box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.2), 0 0 20px rgba(229, 9, 20, 0.15);
+}
+.type-option:hover .type-card {
+  border-color: var(--red-dark);
+}
+
+/* Badges de tipo no card */
+.type-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border: 1px solid;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+}
+.type-badge.resale {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border-color: #6366f1;
+}
+.type-badge.print3d {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border-color: #a855f7;
+}
+
+/* Oculta os blocos do tipo não selecionado */
+.type-resale-only, .type-3d-only {
+  transition: opacity 0.15s;
+}
+
 /* ===================== SECTION TITLES (dentro do modal) ===================== */
 .section-title {
   font-size: 11px;
@@ -1512,6 +1591,8 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .badge-nacional  { background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: #22c55e55; }
 .badge-importado { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: #f59e0b55; }
 .badge-misto     { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: #818cf855; }
+.badge-type-resale { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border-color: #6366f1; }
+.badge-type-3d     { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border-color: #a855f7; }
 .badge-hot       { background: linear-gradient(135deg, var(--red), var(--red-dark)); color: #fff; border-color: var(--red-hot); box-shadow: 0 0 10px var(--red-glow); }
 .badge-loss      { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: var(--danger); }
 .details-dates {
