@@ -249,13 +249,13 @@
             <input type="text" id="f-name" required />
           </div>
 
-          <div class="form-group">
+          <div class="form-group type-resale-only">
             <label>Unidades por kit/par *</label>
             <input type="number" id="f-units-per-kit" min="1" value="2" required />
           </div>
 
           <div class="form-group">
-            <label>Preço de venda do kit/par (R$) *</label>
+            <label>Preço de venda (R$) *</label>
             <input type="number" id="f-price" step="0.01" min="0" required />
           </div>
 
@@ -388,12 +388,34 @@
             </div>
 
             <div class="form-group">
+              <label>Material</label>
+              <select id="f-fprod-material">
+                <option value="PLA">PLA</option>
+                <option value="PETG">PETG</option>
+                <option value="ABS">ABS</option>
+                <option value="TPU">TPU</option>
+                <option value="Nylon">Nylon</option>
+                <option value="Resina">Resina</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label>Peso por peça (g) *</label>
               <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 65" />
             </div>
+
             <div class="form-group">
               <label>Custo do filamento (R$/kg) *</label>
               <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 140.00" />
+            </div>
+            <div class="form-group">
+              <label>
+                Custo por hora de impressão (R$)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — energia + depreciação
+                </small>
+              </label>
+              <input type="number" id="f-fprod-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
             </div>
 
             <div class="form-group">
@@ -405,18 +427,9 @@
               <input type="number" id="f-fprod-minutes" min="0" max="59" value="0" />
             </div>
 
-            <div class="form-group">
-              <label>Consumo de energia (kWh)</label>
-              <input type="number" id="f-fprod-energy-kwh" step="0.01" min="0" placeholder="Opcional" />
-            </div>
-            <div class="form-group">
-              <label>Tarifa de energia (R$/kWh)</label>
-              <input type="number" id="f-fprod-energy-price" step="0.01" min="0" placeholder="Opcional" />
-            </div>
-
             <div class="form-group full">
               <label>
-                Custos extras (R$)
+                Custos extras manuais (R$)
                 <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
                   — embalagem, cola, imã, parafuso, mão de obra, acabamento
                 </small>
@@ -488,7 +501,9 @@
 
         <!-- ===== Live calc ===== -->
         <h4 class="section-title">🧮 Resumo financeiro</h4>
-        <div class="calc-box" id="calc-box">
+
+        <!-- Resumo REVENDA -->
+        <div class="calc-box type-resale-only" id="calc-box">
           <div class="calc-section">
             <h5>💵 Custos (agregado das compras)</h5>
             <div><span>Custo do produto</span><b id="c-cost-product">R$ 0,00</b></div>
@@ -527,7 +542,46 @@
           </div>
         </div>
 
-        <p id="leftover-warning" class="warn hidden">
+        <!-- Resumo IMPRESSÃO 3D -->
+        <div class="calc-box type-3d-only hidden" id="calc-box-3d">
+          <div class="calc-section">
+            <h5>🧵 Custos de produção</h5>
+            <div><span>Custo do filamento</span><b id="c3-filament">R$ 0,00</b></div>
+            <div><span>Custo do tempo de impressão</span><b id="c3-time">R$ 0,00</b></div>
+            <div><span>Custos extras manuais</span><b id="c3-extras">R$ 0,00</b></div>
+            <div><span>Custo total unitário</span><b id="c3-unit-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section">
+            <h5>🖨️ Lote</h5>
+            <div><span>Quantidade produzida</span><b id="c3-qty">0 un</b></div>
+            <div><span>Peso total</span><b id="c3-total-weight">0 g</b></div>
+            <div><span>Tempo total de impressão</span><b id="c3-total-time">—</b></div>
+            <div><span>Custo total do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section highlight">
+            <h5>📈 Resultado</h5>
+            <div><span>Líquido por unidade</span><b id="c3-net">R$ 0,00</b></div>
+            <div><span>Lucro por unidade</span><b id="c3-profit-unit">R$ 0,00</b></div>
+            <div><span>Lucro total</span><b id="c3-profit-total">R$ 0,00</b></div>
+            <div><span>Lucro sobre custo</span><b id="c3-profit-cost">0%</b></div>
+            <div><span>Margem líquida</span><b id="c3-net-margin">0%</b></div>
+          </div>
+
+          <div class="calc-section suggest">
+            <h5>🎯 Quanto devo cobrar para <span id="c3-target-label">100%</span> de lucro</h5>
+            <div>
+              <span>Preço sugerido</span>
+              <b id="c3-suggested">R$ 0,00</b>
+            </div>
+            <button type="button" class="btn-apply-suggest" id="btn-apply-suggest-3d">
+              Usar este preço
+            </button>
+          </div>
+        </div>
+
+        <p id="leftover-warning" class="warn hidden type-resale-only">
           ⚠️ Atenção: a quantidade total comprada não é divisível pelo tamanho do kit.
           <b id="warn-text"></b>
         </p>
@@ -618,12 +672,29 @@
           </div>
 
           <div class="form-group">
+            <label>Material</label>
+            <select id="f-pr-material">
+              <option value="PLA">PLA</option>
+              <option value="PETG">PETG</option>
+              <option value="ABS">ABS</option>
+              <option value="TPU">TPU</option>
+              <option value="Nylon">Nylon</option>
+              <option value="Resina">Resina</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>Peso por peça (g) *</label>
             <input type="number" id="f-pr-weight" step="0.1" min="0" required />
           </div>
+
           <div class="form-group">
             <label>Custo do filamento (R$/kg) *</label>
             <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Custo por hora (R$)</label>
+            <input type="number" id="f-pr-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
           </div>
 
           <div class="form-group">
@@ -633,15 +704,6 @@
           <div class="form-group">
             <label>Tempo — minutos</label>
             <input type="number" id="f-pr-minutes" min="0" max="59" value="0" />
-          </div>
-
-          <div class="form-group">
-            <label>Consumo (kWh)</label>
-            <input type="number" id="f-pr-energy-kwh" step="0.01" min="0" />
-          </div>
-          <div class="form-group">
-            <label>Tarifa (R$/kWh)</label>
-            <input type="number" id="f-pr-energy-price" step="0.01" min="0" />
           </div>
 
           <div class="form-group full">
