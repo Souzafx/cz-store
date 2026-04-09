@@ -1067,11 +1067,11 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   border-color: var(--red-dark);
 }
 
-/* Badges de tipo no card */
+/* Badges de tipo no card (top-left, acima do shopee-mini quando presente) */
 .type-badge {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 9px;
@@ -1079,7 +1079,7 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   letter-spacing: 0.8px;
   text-transform: uppercase;
   border: 1px solid;
-  z-index: 2;
+  z-index: 3;
   backdrop-filter: blur(4px);
 }
 .type-badge.resale {
@@ -1524,7 +1524,7 @@ button.section-title.collapsible-toggle:hover { color: #fff; }
 
 .shopee-mini {
   position: absolute;
-  top: 12px;
+  top: 42px;   /* fica abaixo do .type-badge */
   left: 12px;
   z-index: 3;
 }
