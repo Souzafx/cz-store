@@ -4,7 +4,30 @@ Todas as mudanças importantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
-## [2.0.0] — Versão atual
+## [2.1.0] — Versão atual
+
+### Adicionado
+- 🛒 **Integração com Shopee** via backend Node.js/Express dedicado
+  - Botão "Enviar para Shopee" no modal de detalhes
+  - Modo **mock** (padrão, sem credenciais) para testes locais — retorna `item_id` fictício
+  - Modo **live** que assina requisições HMAC-SHA256 e chama `/api/v2/product/add_item`
+  - Validação de campos obrigatórios (nome, descrição ≥ 20 chars, preço, estoque, imagem)
+  - Mapeamento automático do modelo interno → payload Shopee (dimensão, peso, galeria)
+- 🏷️ Novos campos no formulário de produto: SKU, marca, peso, ID categoria, dimensões (L×A×P)
+- 🎯 Estado de sincronização no produto: `shopee_status`, `shopee_item_id`, `shopee_synced_at`, `shopee_error`
+- 🏷️ Badge visual de status no canto superior esquerdo do card (pending/published/error)
+- 📊 Seção "Integração Shopee" no modal de detalhes com ID do anúncio, data de sincronização, modo e eventuais erros
+- 🖥️ Backend separado em `backend/` com rotas `POST /api/shopee/create-product` e `GET /api/shopee/status`
+
+### Segurança
+- Credenciais Shopee ficam apenas no `.env` do backend, **nunca no frontend**
+- `.env` versionado apenas como `.env.example` (template sem valores)
+- HMAC-SHA256 assinado server-side com `crypto` nativo do Node
+- CORS liberado apenas para localhost
+
+---
+
+## [2.0.0]
 
 ### Adicionado
 - 🌐 **Importar do link** — cola um link de produto (AliExpress, Shopee, Amazon, Mercado Livre, Magalu) e o sistema extrai nome, imagens, descrição e preço automaticamente via CORS proxy com fallback em cascata.
