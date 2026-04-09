@@ -9,8 +9,8 @@ o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 ### Adicionado
 - 🌐 **`frontend-server.js`** — servidor HTTP estático zero-dependency
   servindo em http://localhost:3030 (só usa módulos nativos de Node)
-- 🚀 **`netlify.toml`** — configuração de deploy pro Netlify com build
-  que copia só frontend (exclui `backend/` do deploy)
+- 🚀 **`vercel.json`** — configuração de deploy pro Vercel com build
+  que copia só frontend para `dist/` (exclui `backend/` do deploy)
 - 🛒 **Produtos fabricados em impressão 3D** como novo tipo de produto
   ao lado de revenda (type="3d_print")
 - 🖨️ **Histórico de produção** separado do histórico de compras
