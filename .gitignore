@@ -30,7 +30,7 @@ pnpm-debug.log*
 package-lock.json.backup
 
 # ---- Build / dist ----
-dist/
+dist/           # gerado pelo build do Netlify (e pelo teste local)
 build/
 out/
 .cache/
@@ -47,6 +47,11 @@ backend/.env
 
 # Permite versionar o template
 !backend/.env.example
+
+# ---- Backend runtime (gerado em runtime, nunca versionar) ----
+backend/logs/
+backend/data/
+backend/data/shopee-tokens.json
 
 # ---- Logs ----
 logs/

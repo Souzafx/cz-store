@@ -36,6 +36,18 @@ function formatDateTime(iso) {
 }
 
 /**
+ * Extrai apenas a hora "HH:mm" de um ISO timestamp com fuso local.
+ * Retorna string vazia se não houver parte de hora ou se o input for inválido.
+ */
+function formatTime(iso) {
+  if (!iso || typeof iso !== "string" || iso.length <= 10) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
  * Chave para ordenar compras cronologicamente.
  * Usa createdAt (timestamp completo) ou cai na date (yyyy-mm-dd).
  */

@@ -4,6 +4,56 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CZ • Controle de Produtos</title>
+
+  <!--
+    PRE-PAINT: restaura a última view visitada antes do primeiro paint.
+    Precisa ser INLINE (não via arquivo externo) para rodar antes do
+    body ser renderizado. Isso elimina o "flash" do dashboard no F5.
+
+    Cobre 4 elementos da UI:
+      1) #view-* (conteúdo das views)
+      2) #view-title (título do topbar)
+      3) #view-subtitle (subtítulo do topbar)
+      4) .nav-link.active (item destacado na sidebar)
+  -->
+  <style>
+    /* (1) Views — só a correspondente ao atributo fica visível */
+    #view-dashboard,
+    #view-produtos,
+    #view-impressao3d,
+    #view-historico { display: none; }
+
+    html[data-initial-view="dashboard"]   #view-dashboard,
+    html[data-initial-view="produtos"]    #view-produtos,
+    html[data-initial-view="impressao3d"] #view-impressao3d,
+    html[data-initial-view="historico"]   #view-historico { display: block; }
+
+    /* (2) e (3) Título e subtítulo: ver script inline logo após os
+       elementos no body. Não usar ::before para evitar diferenças
+       sutis de métrica entre pseudo-element e texto real. */
+
+    /* (4) Sidebar — link ativo baseado na view atual. Usa attr selector
+       para marcar o link correspondente sem precisar de JS.
+       O estilo .active vem do style.css externo. */
+    html[data-initial-view="dashboard"]   .nav-link[data-view="dashboard"],
+    html[data-initial-view="produtos"]    .nav-link[data-view="produtos"],
+    html[data-initial-view="impressao3d"] .nav-link[data-view="impressao3d"],
+    html[data-initial-view="historico"]   .nav-link[data-view="historico"] {
+      background: linear-gradient(90deg, rgba(229, 9, 20, 0.22), transparent);
+      color: #fff !important;
+      border-left-color: #e50914 !important;
+      box-shadow: inset 0 0 20px rgba(229, 9, 20, 0.08);
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var v = localStorage.getItem("cz_current_view") || "dashboard";
+        document.documentElement.setAttribute("data-initial-view", v);
+      } catch (_) {}
+    })();
+  </script>
+
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -18,19 +68,26 @@
     </div>
 
     <nav>
-      <a href="#dashboard" class="nav-link active" data-view="dashboard">
+      <a href="#dashboard" class="nav-link" data-view="dashboard">
         <span class="icon">📊</span> Dashboard
       </a>
       <a href="#produtos" class="nav-link" data-view="produtos">
-        <span class="icon">📦</span> Produtos
+        <span class="icon">📦</span> Produto
+      </a>
+      <a href="#impressao3d" class="nav-link" data-view="impressao3d">
+        <span class="icon">🖨️</span> Impressão 3D
       </a>
       <a href="#historico" class="nav-link" data-view="historico">
         <span class="icon">📜</span> Histórico
       </a>
+      <a href="#" class="nav-link" id="nav-settings">
+        <span class="icon">⚙️</span> Configurações
+      </a>
     </nav>
 
     <div class="sidebar-footer">
-      <small>v2.0 • Local • MacBook M1</small>
+      <small>v2.2 • Local • MacBook M1</small>
+      <div id="backend-status-pill" class="backend-pill"></div>
     </div>
   </aside>
 
@@ -39,11 +96,34 @@
     <!-- Topbar -->
     <header class="topbar">
       <div>
-        <h2 id="view-title">Dashboard</h2>
-        <p id="view-subtitle">Resumo financeiro da sua loja</p>
+        <!-- Textos preenchidos pelo inline script abaixo, de forma síncrona,
+             imediatamente após o parser encontrar os elementos. Isso roda
+             ANTES do primeiro paint do topbar, evitando flash e layout shift. -->
+        <h2 id="view-title"></h2>
+        <p id="view-subtitle"></p>
+        <script>
+          (function () {
+            var v = document.documentElement.getAttribute("data-initial-view") || "dashboard";
+            var map = {
+              dashboard:   ["Dashboard",             "Resumo financeiro da sua loja"],
+              produtos:    ["Produtos",              "Itens comprados prontos para revender"],
+              impressao3d: ["Impressão 3D",          "Produtos fabricados por você"],
+              historico:   ["Histórico de Compras",  "Linha do tempo de todas as compras"],
+            };
+            var t = map[v] || map.dashboard;
+            document.getElementById("view-title").textContent = t[0];
+            document.getElementById("view-subtitle").textContent = t[1];
+          })();
+        </script>
       </div>
       <div class="topbar-actions">
-        <label class="btn btn-ghost" title="Importar planilha Excel (.xlsx)">
+        <!--
+          Botão de importar Excel — OCULTO TEMPORARIAMENTE
+          Para reativar: remova `style="display:none"` da <label> abaixo.
+          O input #import-file e a lógica de importação em js/app.js
+          continuam intactos e funcionando.
+        -->
+        <label class="btn btn-ghost" title="Importar planilha Excel (.xlsx)" style="display:none">
           📥 Importar Excel
           <input type="file" id="import-file" accept=".xlsx,.xls" hidden />
         </label>
@@ -52,6 +132,8 @@
     </header>
 
     <!-- ============ DASHBOARD VIEW ============ -->
+    <!-- Todas as views estão escondidas por default pelo <style> inline no head.
+         A view visível é controlada pelo atributo html[data-initial-view]. -->
     <section id="view-dashboard" class="view">
       <div class="cards">
         <div class="card card-invested">
@@ -87,7 +169,7 @@
     </section>
 
     <!-- ============ PRODUCTS VIEW ============ -->
-    <section id="view-produtos" class="view hidden">
+    <section id="view-produtos" class="view">
       <div class="filters">
         <input type="search" id="search" placeholder="🔎 Buscar produto..." />
         <select id="sort">
@@ -107,12 +189,38 @@
 
       <div id="catalog" class="catalog"></div>
       <p id="empty-catalog" class="empty hidden">
-        Nenhum produto encontrado. Clique em <b>+ Novo Produto</b> para começar.
+        Nenhum produto cadastrado. Clique em <b>+ Novo Produto</b> para começar.
+      </p>
+    </section>
+
+    <!-- ============ IMPRESSÃO 3D VIEW ============ -->
+    <section id="view-impressao3d" class="view">
+      <div class="filters">
+        <input type="search" id="search-3d" placeholder="🔎 Buscar produto 3D..." />
+        <select id="sort-3d">
+          <option value="recent">Mais recentes</option>
+          <option value="profit-desc">Maior lucro total</option>
+          <option value="profit-asc">Menor lucro total</option>
+          <option value="margin-desc">Maior margem %</option>
+          <option value="name">Nome (A-Z)</option>
+        </select>
+        <select id="filter-profit-3d">
+          <option value="all">Todos os lucros</option>
+          <option value="positive">Apenas lucrativos</option>
+          <option value="high">Alto lucro (&gt; 50%)</option>
+          <option value="loss">Prejuízo</option>
+        </select>
+      </div>
+
+      <div id="catalog-3d" class="catalog"></div>
+      <p id="empty-catalog-3d" class="empty hidden">
+        Nenhum produto de impressão 3D cadastrado.
+        Clique em <b>+ Novo Produto</b> e selecione <b>🖨️ Fabricação 3D</b>.
       </p>
     </section>
 
     <!-- ============ HISTÓRICO VIEW ============ -->
-    <section id="view-historico" class="view hidden">
+    <section id="view-historico" class="view">
       <!-- Card de destaque: última compra -->
       <div class="panel last-purchase hidden" id="last-purchase-panel">
         <div class="last-purchase-badge">🕒 Última compra</div>
@@ -187,6 +295,27 @@
           </small>
         </div>
 
+        <!-- ===== Tipo do produto ===== -->
+        <h4 class="section-title">🏷️ Tipo do produto</h4>
+        <div class="type-selector">
+          <label class="type-option">
+            <input type="radio" name="f-type" value="resale" checked />
+            <div class="type-card">
+              <span class="type-icon">🛒</span>
+              <b>Produto</b>
+              <small>Produto comprado pronto para revender</small>
+            </div>
+          </label>
+          <label class="type-option">
+            <input type="radio" name="f-type" value="3d_print" />
+            <div class="type-card">
+              <span class="type-icon">🖨️</span>
+              <b>Fabricação 3D</b>
+              <small>Produto impresso por você em PLA/ABS/PETG</small>
+            </div>
+          </label>
+        </div>
+
         <!-- ===== Bloco: dados do produto ===== -->
         <h4 class="section-title">📦 Informações do produto</h4>
         <div class="form-grid">
@@ -195,13 +324,13 @@
             <input type="text" id="f-name" required />
           </div>
 
-          <div class="form-group">
+          <div class="form-group type-resale-only">
             <label>Unidades por kit/par *</label>
             <input type="number" id="f-units-per-kit" min="1" value="2" required />
           </div>
 
           <div class="form-group">
-            <label>Preço de venda do kit/par (R$) *</label>
+            <label>Preço de venda (R$) *</label>
             <input type="number" id="f-price" step="0.01" min="0" required />
           </div>
 
@@ -221,14 +350,27 @@
           </div>
 
           <div class="form-group full">
-            <label>
-              Descrição do produto (opcional)
-              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                — usado para anúncio / integração com loja online
-              </small>
-            </label>
+            <div class="description-header">
+              <label>
+                Descrição do produto (opcional)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — usado para anúncio / integração com loja online
+                </small>
+              </label>
+              <div class="description-actions">
+                <button type="button" class="btn-desc-action" id="btn-gen-desc" title="Gerar descrição comercial baseada no nome">
+                  ✨ Gerar descrição
+                </button>
+                <button type="button" class="btn-desc-action" id="btn-improve-desc" title="Adicionar frase comercial ao final da descrição atual">
+                  + Melhorar
+                </button>
+                <button type="button" class="btn-desc-action danger" id="btn-clear-desc" title="Limpar descrição">
+                  ✕ Limpar
+                </button>
+              </div>
+            </div>
             <textarea id="f-description" rows="6"
-              placeholder="Detalhes, diferenciais, compatibilidade, conteúdo da embalagem, instruções, texto comercial para anúncio..."></textarea>
+              placeholder="Clique em ✨ Gerar descrição para criar automaticamente um texto comercial baseado no nome do produto..."></textarea>
           </div>
 
           <div class="form-group full">
@@ -285,8 +427,8 @@
           </div>
         </div>
 
-        <!-- ===== Bloco: primeira compra (só ao criar novo) ===== -->
-        <div id="first-purchase-section">
+        <!-- ===== Bloco: primeira compra (só REVENDA ao criar novo) ===== -->
+        <div id="first-purchase-section" class="type-resale-only">
           <h4 class="section-title">🛒 Primeira compra</h4>
           <div class="form-grid">
             <div class="form-group">
@@ -320,8 +462,122 @@
           </div>
         </div>
 
-        <!-- ===== Bloco: histórico (só ao editar) ===== -->
-        <div id="history-section" class="hidden">
+        <!-- ===== Bloco: produção 3D (só FABRICAÇÃO 3D ao criar novo) ===== -->
+        <div id="first-production-section" class="type-3d-only hidden">
+          <h4 class="section-title">🖨️ Primeira produção</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Data da produção *</label>
+              <input type="date" id="f-fprod-date" />
+            </div>
+            <div class="form-group">
+              <label>Quantidade produzida *</label>
+              <input type="number" id="f-fprod-qty" min="1" value="1" />
+            </div>
+
+            <div class="form-group">
+              <label>Material</label>
+              <select id="f-fprod-material">
+                <option value="PLA">PLA</option>
+                <option value="PETG">PETG</option>
+                <option value="ABS">ABS</option>
+                <option value="TPU">TPU</option>
+                <option value="Nylon">Nylon</option>
+                <option value="Resina">Resina</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Peso por peça (g) *</label>
+              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 65" />
+            </div>
+
+            <div class="form-group">
+              <label>Custo do filamento (R$/kg) *</label>
+              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 140.00" />
+            </div>
+            <div class="form-group">
+              <label>
+                Custo por hora de impressão (R$)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — energia + depreciação
+                </small>
+              </label>
+              <input type="number" id="f-fprod-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+            </div>
+
+            <div class="form-group">
+              <label>Tempo — horas</label>
+              <input type="number" id="f-fprod-hours" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label>Tempo — minutos</label>
+              <input type="number" id="f-fprod-minutes" min="0" max="59" value="0" />
+            </div>
+
+            <div class="form-group full">
+              <label>
+                Custos extras manuais (R$)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — embalagem, cola, imã, parafuso, mão de obra, acabamento
+                </small>
+              </label>
+              <input type="number" id="f-fprod-extras" step="0.01" min="0" placeholder="Ex: 2.50" />
+            </div>
+
+            <div class="form-group full">
+              <label>Observação (opcional)</label>
+              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, primeira tiragem" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bloco: dados específicos da Shopee (opcional, colapsável) ===== -->
+        <div class="collapsible collapsed" id="shopee-section">
+          <button type="button" class="section-title collapsible-toggle" data-target="shopee-section">
+            <span>🛒 Dados para Shopee
+              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                (opcional, usado na publicação)
+              </small>
+            </span>
+            <span class="collapsible-caret">▸</span>
+          </button>
+          <div class="collapsible-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>SKU</label>
+                <input type="text" id="f-sku" placeholder="Ex: GM8-CZSTORE" />
+              </div>
+              <div class="form-group">
+                <label>Marca</label>
+                <input type="text" id="f-brand" placeholder="Ex: Kailh" />
+              </div>
+              <div class="form-group">
+                <label>Peso (kg)</label>
+                <input type="number" id="f-weight" step="0.01" min="0" placeholder="0.10" />
+              </div>
+              <div class="form-group">
+                <label>ID Categoria Shopee</label>
+                <input type="number" id="f-category-id" min="0" placeholder="Ex: 100012" />
+              </div>
+              <div class="form-group">
+                <label>Comprimento (cm)</label>
+                <input type="number" id="f-dim-length" step="0.1" min="0" placeholder="10" />
+              </div>
+              <div class="form-group">
+                <label>Largura (cm)</label>
+                <input type="number" id="f-dim-width" step="0.1" min="0" placeholder="10" />
+              </div>
+              <div class="form-group">
+                <label>Altura (cm)</label>
+                <input type="number" id="f-dim-height" step="0.1" min="0" placeholder="5" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bloco: histórico de compras (REVENDA, só ao editar) ===== -->
+        <div id="history-section" class="type-resale-only hidden">
           <div class="section-title-row">
             <h4 class="section-title">📜 Histórico de compras</h4>
             <button type="button" class="btn btn-primary btn-sm" id="btn-add-purchase">
@@ -331,9 +587,22 @@
           <div id="product-purchases-list" class="purchases-list"></div>
         </div>
 
+        <!-- ===== Bloco: histórico de produção (3D, só ao editar) ===== -->
+        <div id="production-history-section" class="type-3d-only hidden">
+          <div class="section-title-row">
+            <h4 class="section-title">🖨️ Histórico de produção</h4>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-add-production">
+              + Nova produção
+            </button>
+          </div>
+          <div id="product-production-list" class="purchases-list"></div>
+        </div>
+
         <!-- ===== Live calc ===== -->
         <h4 class="section-title">🧮 Resumo financeiro</h4>
-        <div class="calc-box" id="calc-box">
+
+        <!-- Resumo REVENDA -->
+        <div class="calc-box type-resale-only" id="calc-box">
           <div class="calc-section">
             <h5>💵 Custos (agregado das compras)</h5>
             <div><span>Custo do produto</span><b id="c-cost-product">R$ 0,00</b></div>
@@ -372,7 +641,46 @@
           </div>
         </div>
 
-        <p id="leftover-warning" class="warn hidden">
+        <!-- Resumo IMPRESSÃO 3D -->
+        <div class="calc-box type-3d-only hidden" id="calc-box-3d">
+          <div class="calc-section">
+            <h5>🧵 Custos de produção</h5>
+            <div><span>Custo do filamento</span><b id="c3-filament">R$ 0,00</b></div>
+            <div><span>Custo do tempo de impressão</span><b id="c3-time">R$ 0,00</b></div>
+            <div><span>Custos extras manuais</span><b id="c3-extras">R$ 0,00</b></div>
+            <div><span>Custo total unitário</span><b id="c3-unit-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section">
+            <h5>🖨️ Lote</h5>
+            <div><span>Quantidade produzida</span><b id="c3-qty">0 un</b></div>
+            <div><span>Peso total</span><b id="c3-total-weight">0 g</b></div>
+            <div><span>Tempo total de impressão</span><b id="c3-total-time">—</b></div>
+            <div><span>Custo total do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section highlight">
+            <h5>📈 Resultado</h5>
+            <div><span>Líquido por unidade</span><b id="c3-net">R$ 0,00</b></div>
+            <div><span>Lucro por unidade</span><b id="c3-profit-unit">R$ 0,00</b></div>
+            <div><span>Lucro total</span><b id="c3-profit-total">R$ 0,00</b></div>
+            <div><span>Lucro sobre custo</span><b id="c3-profit-cost">0%</b></div>
+            <div><span>Margem líquida</span><b id="c3-net-margin">0%</b></div>
+          </div>
+
+          <div class="calc-section suggest">
+            <h5>🎯 Quanto devo cobrar para <span id="c3-target-label">100%</span> de lucro</h5>
+            <div>
+              <span>Preço sugerido</span>
+              <b id="c3-suggested">R$ 0,00</b>
+            </div>
+            <button type="button" class="btn-apply-suggest" id="btn-apply-suggest-3d">
+              Usar este preço
+            </button>
+          </div>
+        </div>
+
+        <p id="leftover-warning" class="warn hidden type-resale-only">
           ⚠️ Atenção: a quantidade total comprada não é divisível pelo tamanho do kit.
           <b id="warn-text"></b>
         </p>
@@ -435,6 +743,87 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="btn-p-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar compra</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: NOVA/EDITAR PRODUÇÃO 3D ============ -->
+  <div class="modal hidden" id="production-modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3 id="production-modal-title">Nova Produção</h3>
+        <button class="icon-btn" id="production-modal-close" type="button">✕</button>
+      </div>
+
+      <form id="production-form">
+        <input type="hidden" id="production-id" />
+        <input type="hidden" id="production-product-id" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Data da produção *</label>
+            <input type="date" id="f-pr-date" required />
+          </div>
+          <div class="form-group">
+            <label>Quantidade produzida *</label>
+            <input type="number" id="f-pr-qty" min="1" required />
+          </div>
+
+          <div class="form-group">
+            <label>Material</label>
+            <select id="f-pr-material">
+              <option value="PLA">PLA</option>
+              <option value="PETG">PETG</option>
+              <option value="ABS">ABS</option>
+              <option value="TPU">TPU</option>
+              <option value="Nylon">Nylon</option>
+              <option value="Resina">Resina</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Peso por peça (g) *</label>
+            <input type="number" id="f-pr-weight" step="0.1" min="0" required />
+          </div>
+
+          <div class="form-group">
+            <label>Custo do filamento (R$/kg) *</label>
+            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Custo por hora (R$)</label>
+            <input type="number" id="f-pr-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+          </div>
+
+          <div class="form-group">
+            <label>Tempo — horas</label>
+            <input type="number" id="f-pr-hours" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Tempo — minutos</label>
+            <input type="number" id="f-pr-minutes" min="0" max="59" value="0" />
+          </div>
+
+          <div class="form-group full">
+            <label>Custos extras (R$)</label>
+            <input type="number" id="f-pr-extras" step="0.01" min="0" />
+          </div>
+
+          <div class="form-group full">
+            <label>Observação</label>
+            <input type="text" id="f-pr-note" placeholder="Ex: PLA laranja, lote noturno" />
+          </div>
+        </div>
+
+        <div class="calc-box-mini" id="production-live-calc">
+          <div><span>Custo por unidade</span><b id="pr-unit">R$ 0,00</b></div>
+          <div><span>Custo total do lote</span><b id="pr-total">R$ 0,00</b></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-pr-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar produção</button>
         </div>
       </form>
     </div>
@@ -514,6 +903,18 @@
           </div>
         </div>
 
+        <!-- Integração Shopee -->
+        <div class="details-section">
+          <h4>🛒 Integração Shopee</h4>
+          <div class="shopee-box" id="dm-shopee-box">
+            <div class="shopee-status">
+              <span class="label">Status:</span>
+              <span class="shopee-badge" id="dm-shopee-status">DRAFT</span>
+            </div>
+            <div class="shopee-meta" id="dm-shopee-meta"></div>
+          </div>
+        </div>
+
         <!-- Histórico -->
         <div class="details-section">
           <div class="details-section-head">
@@ -527,7 +928,50 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="dm-close2">Fechar</button>
         <button type="button" class="btn btn-danger" id="dm-delete">🗑️ Excluir</button>
+        <button type="button" class="btn btn-shopee" id="dm-send-shopee">🛒 Enviar para Shopee</button>
         <button type="button" class="btn btn-primary" id="dm-edit">✏️ Editar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: CONFIGURAÇÕES ============ -->
+  <div class="modal hidden" id="settings-modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>⚙️ Configurações</h3>
+        <button class="icon-btn" id="settings-close" type="button">✕</button>
+      </div>
+
+      <div style="padding:26px 28px 24px">
+        <h4 class="section-title">🔌 Backend</h4>
+
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>URL do backend</label>
+            <input type="url" id="cfg-backend-url"
+                   placeholder="http://localhost:3000/api/shopee" />
+          </div>
+
+          <div class="form-group full">
+            <label>
+              Token de API (X-CZ-Token)
+              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                — só obrigatório em produção
+              </small>
+            </label>
+            <div class="image-url-row">
+              <input type="password" id="cfg-api-token" placeholder="deixar vazio se não usar auth" />
+              <button type="button" class="btn-image-action" id="btn-toggle-token-view" title="Mostrar/ocultar">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="backend-status-box" class="backend-status-box"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-test-backend">🔍 Testar conexão</button>
+          <button type="button" class="btn btn-primary" id="btn-save-settings">Salvar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -540,9 +984,13 @@
   <script src="js/utils/format.js"></script>
   <script src="js/utils/images.js"></script>
   <script src="js/utils/calc.js"></script>
+  <script src="js/utils/description-generator.js"></script>
 
   <!-- Storage (camada de persistência) -->
   <script src="js/storage.js"></script>
+
+  <!-- Services (integrações externas) -->
+  <script src="js/services/shopeeService.js"></script>
 
   <!-- Aplicação (UI, modais, renderização, importadores) -->
   <script src="js/app.js"></script>

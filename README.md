@@ -112,7 +112,7 @@ Não precisa instalar Node, npm, Python ou qualquer coisa.
 ### Clonando do GitHub
 
 ```bash
-git clone https://github.com/SEU_USUARIO/cz-store.git
+git clone https://github.com/Souzafx/cz-store.git
 cd cz-store
 open index.html    # macOS
 # ou: start index.html (Windows) / xdg-open index.html (Linux)
@@ -231,7 +231,7 @@ git commit -m "feat: versão inicial do sistema de produtos CZ Store"
 git branch -M main
 
 # 6. Criar o repositório no GitHub (via site) e conectar:
-git remote add origin https://github.com/SEU_USUARIO/cz-store.git
+git remote add origin https://github.com/Souzafx/cz-store.git
 
 # 7. Empurrar para o GitHub
 git push -u origin main

@@ -1,17 +1,36 @@
 /* ============================================
    app.js — Lógica principal da aplicação
 
-   MODELO DE DADOS (v7):
+   MODELO DE DADOS (v9):
    ---------------------
    product = {
-     id, name, description, unitsPerKit, price, fee, link,
-     photo,             // base64 de upload local (legado + novo)
-     imageUrl,          // URL externa PRINCIPAL
-     galleryImages,     // URLs extras (galeria)
-     createdAt, updatedAt,
-     purchases: [
-       { id, date, qty, costProduct, costTax, note, origin }
-     ]
+     id, name, description, link, photo, imageUrl, galleryImages,
+     price, fee, createdAt, updatedAt,
+
+     // ----- Tipo do produto -----
+     type: "resale" | "3d_print",
+
+     // ----- REVENDA -----
+     unitsPerKit,
+     purchases: [ { id, date, qty, costProduct, costTax, note, origin } ],
+
+     // ----- FABRICAÇÃO 3D -----
+     productionHistory: [
+       { id, createdAt, date, quantity, weightGrams, filamentCostPerKg,
+         printHours, printMinutes, energyKwh, energyCostPerKwh,
+         extraCosts, note }
+     ],
+
+     // ----- Dados Shopee (opcional) -----
+     sku, brand, weight, categoryId,
+     dimensions: { length, width, height },
+
+     // ----- Estado de integração Shopee -----
+     shopee_status,     // "draft" | "pending" | "published" | "error"
+     shopee_item_id,    // ID retornado pela Shopee
+     shopee_synced_at,  // timestamp ISO da última sincronização
+     shopee_error,      // mensagem de erro, se shopee_status === "error"
+     shopee_mode,       // "mock" | "live" — de onde veio a resposta
    }
 
    Resolução de imagem: imageUrl → photo → galleryImages[0] → placeholder.
@@ -37,7 +56,12 @@ const $$ = (sel) => document.querySelectorAll(sel);
  * Converte produtos das versões antigas (v1, v2, v3) para v4 (purchases[]).
  */
 function migrate(p) {
-  if (Array.isArray(p.purchases)) return p; // já é v4
+  if (Array.isArray(p.purchases)) {
+    // Já tem purchases, só garante campos novos
+    if (!p.type) p.type = "resale";
+    if (!Array.isArray(p.productionHistory)) p.productionHistory = [];
+    return p;
+  }
 
   // Determina os valores agregados com base na versão antiga
   let costProduct = 0;
@@ -77,7 +101,12 @@ function migrate(p) {
     ...rest
   } = p;
 
-  return { ...rest, purchases: [purchase] };
+  return {
+    ...rest,
+    type: "resale",
+    purchases: [purchase],
+    productionHistory: [],
+  };
 }
 
 /** Migração em massa na inicialização. */
@@ -89,13 +118,19 @@ function migrate(p) {
       changed = true;
       p = migrate(p);
     }
-    // Garante que toda purchase tenha createdAt (necessário para ordenar por hora)
+    // v4 → v9: campos de tipo
+    if (!p.type) {
+      changed = true;
+      p.type = "resale"; // tudo que existia era revenda
+    }
+    if (!Array.isArray(p.productionHistory)) {
+      p.productionHistory = [];
+    }
+    // Garante createdAt em cada purchase
     if (Array.isArray(p.purchases)) {
       p.purchases = p.purchases.map((pu, idx) => {
         if (!pu.createdAt) {
           changed = true;
-          // Usa a data informada + horas fictícias incrementais para
-          // preservar a ordem relativa que já existia.
           const pad = (n) => String(n).padStart(2, "0");
           const h = pad(Math.min(23, idx));
           return { ...pu, createdAt: `${pu.date || "2024-01-01"}T${h}:00:00.000Z` };
@@ -121,25 +156,48 @@ let editingPurchaseId = null;
 let editingPurchaseProductId = null;
 
 // ---------- Navegação entre views ----------
-$$(".nav-link").forEach((link) => {
+let currentView = "dashboard";
+
+const VIEW_TITLES = {
+  dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
+  produtos:    ["Produtos", "Itens comprados prontos para revender"],
+  impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
+  historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
+};
+
+/**
+ * Ativa uma view. Usada tanto pelo click do usuário quanto pela
+ * restauração do estado ao recarregar a página (F5).
+ */
+function switchToView(view) {
+  if (!VIEW_TITLES[view]) view = "dashboard";
+  currentView = view;
+
+  // A visibilidade é controlada pelo <style> inline no <head>, que
+  // usa o atributo html[data-initial-view="X"] para revelar a view
+  // correta (antes mesmo do JS carregar, eliminando flash no F5).
+  document.documentElement.setAttribute("data-initial-view", view);
+
+  // Atualiza a classe .active no link correspondente
+  $$(".nav-link").forEach((l) => l.classList.remove("active"));
+  const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
+  if (activeLink) activeLink.classList.add("active");
+
+  // Título e subtítulo no topo
+  const [t, s] = VIEW_TITLES[view];
+  $("#view-title").textContent = t;
+  $("#view-subtitle").textContent = s;
+
+  // Persiste a escolha para sobreviver ao F5
+  localStorage.setItem("cz_current_view", view);
+
+  if (view === "historico") renderHistoryView();
+}
+
+$$(".nav-link[data-view]").forEach((link) => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
-    const view = link.dataset.view;
-    $$(".nav-link").forEach((l) => l.classList.remove("active"));
-    link.classList.add("active");
-    $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
-    $("#view-produtos").classList.toggle("hidden", view !== "produtos");
-    $("#view-historico").classList.toggle("hidden", view !== "historico");
-    const titles = {
-      dashboard: ["Dashboard", "Resumo financeiro da sua loja"],
-      produtos: ["Produtos", "Gerencie seu catálogo completo"],
-      historico: ["Histórico de Compras", "Linha do tempo de todas as compras"],
-    };
-    const [t, s] = titles[view] || titles.dashboard;
-    $("#view-title").textContent = t;
-    $("#view-subtitle").textContent = s;
-
-    if (view === "historico") renderHistoryView();
+    switchToView(link.dataset.view);
   });
 });
 
@@ -148,10 +206,24 @@ $$(".nav-link").forEach((link) => {
 // ==============================================================
 const modal = $("#modal");
 
-function openModal(product = null) {
+function openModal(product = null, defaultType = "resale") {
   editingId = product ? product.id : null;
   photoDataUrl = product ? product.photo || null : null;
   imageUrlValue = product ? (product.imageUrl || "") : "";
+
+  // Tipo do produto — usa defaultType quando criando novo
+  const productType = product?.type || defaultType;
+  const typeRadio = document.querySelector(`input[name="f-type"][value="${productType}"]`);
+  if (typeRadio) typeRadio.checked = true;
+  applyTypeVisibility(productType);
+
+  // Esconde a opção do OUTRO tipo no seletor — você sempre cria a partir
+  // de uma página específica (Revenda ou Impressão 3D), então a outra
+  // opção seria confusa. Em edição o tipo é fixo também.
+  document.querySelectorAll(".type-option").forEach((opt) => {
+    const radio = opt.querySelector('input[name="f-type"]');
+    opt.style.display = radio.value === productType ? "" : "none";
+  });
   galleryImagesValue = product && Array.isArray(product.galleryImages)
     ? [...product.galleryImages]
     : [];
@@ -179,39 +251,87 @@ function openModal(product = null) {
   $("#f-import-url").value = "";
   $("#import-status").classList.add("hidden");
 
+  // Dados Shopee (opcionais)
+  $("#f-sku").value = product?.sku || "";
+  $("#f-brand").value = product?.brand || "";
+  $("#f-weight").value = product?.weight ?? "";
+  $("#f-category-id").value = product?.categoryId ?? "";
+  $("#f-dim-length").value = product?.dimensions?.length ?? "";
+  $("#f-dim-width").value = product?.dimensions?.width ?? "";
+  $("#f-dim-height").value = product?.dimensions?.height ?? "";
+
   // Preview: prioridade URL → upload base64
   updateImagePreview();
   renderCandidateImages();
 
-  // Campos da "primeira compra" — precisam ficar desabilitados no modo
-  // edição, senão o navegador bloqueia o submit por causa do `required`
-  // em inputs que estão escondidos.
+  // Campos de "primeira compra" e "primeira produção" — ficam DISABLED em
+  // modo edição para não bloquear o submit pelo required (estão escondidos).
   const firstPurchaseFields = [
     "f-fp-date", "f-fp-qty", "f-fp-cost-product",
     "f-fp-cost-tax", "f-fp-origin", "f-fp-note",
   ];
+  const firstProductionFields = [
+    "f-fprod-date", "f-fprod-qty", "f-fprod-material", "f-fprod-weight",
+    "f-fprod-filament-cost", "f-fprod-hour-cost",
+    "f-fprod-hours", "f-fprod-minutes", "f-fprod-extras", "f-fprod-note",
+  ];
+  const setDisabled = (ids, flag) => {
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = flag;
+    });
+  };
 
   if (product) {
-    // Modo edição: esconde primeira compra, mostra histórico
+    // --- MODO EDIÇÃO ---
     $("#first-purchase-section").classList.add("hidden");
-    $("#history-section").classList.remove("hidden");
-    firstPurchaseFields.forEach((id) => {
-      document.getElementById(id).disabled = true;
-    });
-    renderProductPurchasesList(product);
+    $("#first-production-section").classList.add("hidden");
+    setDisabled(firstPurchaseFields, true);
+    setDisabled(firstProductionFields, true);
+
+    if (productType === "resale") {
+      $("#history-section").classList.remove("hidden");
+      $("#production-history-section").classList.add("hidden");
+      renderProductPurchasesList(product);
+    } else {
+      $("#history-section").classList.add("hidden");
+      $("#production-history-section").classList.remove("hidden");
+      renderProductProductionList(product);
+    }
   } else {
-    // Modo criação: mostra primeira compra, esconde histórico
-    $("#first-purchase-section").classList.remove("hidden");
+    // --- MODO CRIAÇÃO ---
     $("#history-section").classList.add("hidden");
-    firstPurchaseFields.forEach((id) => {
-      document.getElementById(id).disabled = false;
-    });
-    $("#f-fp-date").value = todayISO();
-    $("#f-fp-qty").value = 1;
-    $("#f-fp-cost-product").value = "";
-    $("#f-fp-cost-tax").value = "";
-    $("#f-fp-origin").value = "nacional";
-    $("#f-fp-note").value = "";
+    $("#production-history-section").classList.add("hidden");
+
+    if (productType === "resale") {
+      $("#first-purchase-section").classList.remove("hidden");
+      $("#first-production-section").classList.add("hidden");
+      setDisabled(firstPurchaseFields, false);
+      setDisabled(firstProductionFields, true);
+      // Defaults revenda
+      $("#f-fp-date").value = todayISO();
+      $("#f-fp-qty").value = 1;
+      $("#f-fp-cost-product").value = "";
+      $("#f-fp-cost-tax").value = "";
+      $("#f-fp-origin").value = "nacional";
+      $("#f-fp-note").value = "";
+    } else {
+      $("#first-purchase-section").classList.add("hidden");
+      $("#first-production-section").classList.remove("hidden");
+      setDisabled(firstPurchaseFields, true);
+      setDisabled(firstProductionFields, false);
+      // Defaults 3D
+      $("#f-fprod-date").value = todayISO();
+      $("#f-fprod-qty").value = 1;
+      $("#f-fprod-material").value = "PLA";
+      $("#f-fprod-weight").value = "";
+      $("#f-fprod-filament-cost").value = "";
+      $("#f-fprod-hour-cost").value = "";
+      $("#f-fprod-hours").value = 0;
+      $("#f-fprod-minutes").value = 0;
+      $("#f-fprod-extras").value = "";
+      $("#f-fprod-note").value = "";
+    }
   }
 
   updateLiveCalc();
@@ -224,10 +344,124 @@ function closeModal() {
   photoDataUrl = null;
 }
 
-$("#btn-new").addEventListener("click", () => openModal());
+$("#btn-new").addEventListener("click", () => {
+  // Se estou na página de Impressão 3D, abre já com tipo "3d_print" pré-selecionado
+  const defaultType = currentView === "impressao3d" ? "3d_print" : "resale";
+  openModal(null, defaultType);
+});
 $("#modal-close").addEventListener("click", closeModal);
 $("#btn-cancel").addEventListener("click", closeModal);
+
+// Toggle genérico de seções colapsáveis (clica no título para abrir/fechar)
+document.querySelectorAll(".collapsible-toggle").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const target = document.getElementById(btn.dataset.target);
+    if (target) target.classList.toggle("collapsed");
+  });
+});
+
+// Handler: troca de tipo no seletor (revenda <-> fabricação 3D)
+// Só efetivo quando criando novo produto — em edição o tipo é fixo.
+document.querySelectorAll('input[name="f-type"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (editingId) return; // não permite trocar tipo de produto existente
+    applyTypeVisibility(radio.value);
+    // Re-dispara openModal(null) passando o NOVO tipo como default,
+    // preservando só nome/desc/link já digitados
+    const preserved = {
+      name: $("#f-name").value,
+      description: $("#f-description").value,
+      link: $("#f-link").value,
+    };
+    openModal(null, radio.value);
+    $("#f-name").value = preserved.name;
+    $("#f-description").value = preserved.description;
+    $("#f-link").value = preserved.link;
+  });
+});
+
+/**
+ * Alterna quais seções do formulário ficam visíveis conforme o tipo.
+ * Seções marcadas com .type-resale-only ou .type-3d-only são
+ * mostradas/ocultadas de acordo com o tipo atual.
+ */
+function applyTypeVisibility(type) {
+  const isResale = type === "resale";
+  document.querySelectorAll(".type-resale-only").forEach((el) => {
+    el.style.display = isResale ? "" : "none";
+  });
+  document.querySelectorAll(".type-3d-only").forEach((el) => {
+    el.style.display = isResale ? "none" : "";
+  });
+}
 // >>> clique fora do modal NÃO fecha mais (removido propositalmente) <<<
+
+// ---------- Geração automática de descrição ----------
+/**
+ * Botão "Gerar descrição" — usa o nome + tipo do produto para criar
+ * uma descrição comercial pronta para anúncio. Se já houver texto,
+ * pergunta se quer substituir.
+ */
+$("#btn-gen-desc").addEventListener("click", () => {
+  const name = $("#f-name").value.trim();
+  if (!name) {
+    alert("⚠️ Preencha primeiro o nome do produto para gerar uma descrição.");
+    $("#f-name").focus();
+    return;
+  }
+
+  const type = getSelectedType();
+  const newText = generateDescription(name, { type });
+  const current = $("#f-description").value.trim();
+
+  if (current) {
+    const go = confirm(
+      "Já existe uma descrição preenchida.\n\n" +
+      "Deseja substituir pelo novo texto?\n\n" +
+      "(Clique em Cancelar para manter a descrição atual — use o botão " +
+      "'+ Melhorar' para adicionar uma frase ao final.)"
+    );
+    if (!go) return;
+  }
+
+  $("#f-description").value = newText;
+  $("#f-description").focus();
+});
+
+/**
+ * Botão "+ Melhorar" — adiciona uma frase comercial ao final da
+ * descrição existente, sem apagar o que já foi escrito.
+ */
+$("#btn-improve-desc").addEventListener("click", () => {
+  const name = $("#f-name").value.trim();
+  if (!name) {
+    alert("⚠️ Preencha primeiro o nome do produto.");
+    $("#f-name").focus();
+    return;
+  }
+
+  const type = getSelectedType();
+  const extra = generateImprovement(name, { type });
+  const current = $("#f-description").value.trim();
+
+  if (current) {
+    $("#f-description").value = current + "\n\n" + extra;
+  } else {
+    // Sem texto base, gera uma descrição completa
+    $("#f-description").value = generateDescription(name, { type });
+  }
+  $("#f-description").focus();
+});
+
+/** Botão "✕ Limpar" — zera a descrição. */
+$("#btn-clear-desc").addEventListener("click", () => {
+  if (!$("#f-description").value.trim()) return;
+  if (confirm("Tem certeza que deseja limpar a descrição?")) {
+    $("#f-description").value = "";
+    $("#f-description").focus();
+  }
+});
 
 // ---------- Upload de foto (arquivo local) ----------
 $("#f-photo").addEventListener("change", (e) => {
@@ -755,28 +989,64 @@ function testImageUrlLive(explicit = false) {
 // campos da primeira compra; no modo edição, os valores vêm do storage.
 const LIVE_CALC_FIELDS = [
   "f-units-per-kit", "f-price", "f-fee", "f-target-profit",
+  // resale
   "f-fp-qty", "f-fp-cost-product", "f-fp-cost-tax",
+  // 3d print
+  "f-fprod-qty", "f-fprod-weight", "f-fprod-filament-cost",
+  "f-fprod-hour-cost", "f-fprod-hours", "f-fprod-minutes",
+  "f-fprod-extras",
 ];
 LIVE_CALC_FIELDS.forEach((id) => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("input", updateLiveCalc);
 });
 
+/** Retorna o tipo atualmente selecionado no formulário. */
+function getSelectedType() {
+  const checked = document.querySelector('input[name="f-type"]:checked');
+  return checked?.value || "resale";
+}
+
 /** Monta um objeto product "virtual" para alimentar calcProduct ao vivo. */
 function buildFormProduct() {
+  const type = getSelectedType();
   const base = {
+    type,
     unitsPerKit: $("#f-units-per-kit").value,
     price: $("#f-price").value,
     fee: $("#f-fee").value,
   };
 
   if (editingId) {
-    // No modo edição, os custos vêm das compras já salvas
     const p = Storage.get(editingId);
-    return { ...base, purchases: p?.purchases || [] };
+    return {
+      ...base,
+      type: p?.type || type,
+      purchases: p?.purchases || [],
+      productionHistory: p?.productionHistory || [],
+    };
   }
 
-  // Modo criação: a primeira compra está sendo preenchida no formulário
+  // Modo criação — monta o primeiro histórico em memória
+  if (type === "3d_print") {
+    return {
+      ...base,
+      productionHistory: [
+        {
+          quantity: $("#f-fprod-qty").value,
+          material: $("#f-fprod-material").value,
+          weightGrams: $("#f-fprod-weight").value,
+          filamentCostPerKg: $("#f-fprod-filament-cost").value,
+          hourCost: $("#f-fprod-hour-cost").value,
+          printHours: $("#f-fprod-hours").value,
+          printMinutes: $("#f-fprod-minutes").value,
+          extraCosts: $("#f-fprod-extras").value,
+        },
+      ],
+      purchases: [],
+    };
+  }
+
   return {
     ...base,
     purchases: [
@@ -786,13 +1056,27 @@ function buildFormProduct() {
         costTax: $("#f-fp-cost-tax").value,
       },
     ],
+    productionHistory: [],
   };
 }
 
+/**
+ * Dispatcher: atualiza o resumo financeiro correspondente ao tipo atual
+ * do formulário. Revenda → #calc-box; 3D → #calc-box-3d.
+ */
 function updateLiveCalc() {
+  const type = getSelectedType();
   const target = parseFloat($("#f-target-profit").value) || 0;
   const c = calcProduct(buildFormProduct(), target);
 
+  if (type === "3d_print") {
+    renderLiveCalc3D(c, target);
+  } else {
+    renderLiveCalcResale(c, target);
+  }
+}
+
+function renderLiveCalcResale(c, target) {
   // Custos
   $("#c-cost-product").textContent = BRL(c.costProduct);
   $("#c-cost-tax").textContent = BRL(c.costTax);
@@ -836,7 +1120,54 @@ function updateLiveCalc() {
   }
 }
 
+function renderLiveCalc3D(c, target) {
+  // Custos de produção
+  $("#c3-filament").textContent = BRL(c.totalFilamentCost || 0);
+  $("#c3-time").textContent = BRL(c.totalTimeCost || 0);
+  $("#c3-extras").textContent = BRL(c.totalExtras || 0);
+  $("#c3-unit-cost").textContent = BRL(c.costUnit);
+
+  // Lote
+  $("#c3-qty").textContent = `${c.qtyBought} un`;
+  $("#c3-total-weight").textContent = `${(c.totalWeight || 0).toFixed(1)} g`;
+  $("#c3-total-time").textContent = formatPrintTime(c.totalMinutes || 0);
+  $("#c3-batch-cost").textContent = BRL(c.totalInvested);
+
+  // Resultado
+  const netEl = $("#c3-net");
+  const profitUnitEl = $("#c3-profit-unit");
+  const profitTotalEl = $("#c3-profit-total");
+  const pcEl = $("#c3-profit-cost");
+  const nmEl = $("#c3-net-margin");
+  netEl.textContent = BRL(c.netPerKit);
+  profitUnitEl.textContent = BRL(c.profitPerKit);
+  profitTotalEl.textContent = BRL(c.totalProfit);
+  pcEl.textContent = PCT(c.profitOnCost);
+  nmEl.textContent = PCT(c.netMargin);
+  const isLoss = c.profitPerKit < 0;
+  [netEl, profitUnitEl, profitTotalEl, pcEl, nmEl].forEach((el) =>
+    el.classList.toggle("loss", isLoss)
+  );
+  const resultSection = pcEl.closest(".calc-section");
+  if (resultSection) resultSection.classList.toggle("is-loss", isLoss);
+
+  // Sugestão
+  $("#c3-target-label").textContent = `${target}%`;
+  $("#c3-suggested").textContent = BRL(c.suggestedPrice);
+}
+
+// Aplicar preço sugerido — REVENDA
 $("#btn-apply-suggest").addEventListener("click", () => {
+  const target = parseFloat($("#f-target-profit").value) || 0;
+  const c = calcProduct(buildFormProduct(), target);
+  if (c.suggestedPrice > 0) {
+    $("#f-price").value = c.suggestedPrice.toFixed(2);
+    updateLiveCalc();
+  }
+});
+
+// Aplicar preço sugerido — IMPRESSÃO 3D
+$("#btn-apply-suggest-3d").addEventListener("click", () => {
   const target = parseFloat($("#f-target-profit").value) || 0;
   const c = calcProduct(buildFormProduct(), target);
   if (c.suggestedPrice > 0) {
@@ -866,7 +1197,7 @@ function renderProductPurchasesList(product) {
     item.innerHTML = `
       <div class="pi-date">
         ${formatDate(pu.date)}
-        ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+        ${pu.createdAt ? `<div class="pi-time">${formatTime(pu.createdAt)}</div>` : ""}
         ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
       </div>
       <div class="pi-info">
@@ -927,7 +1258,10 @@ $("#btn-add-purchase").addEventListener("click", () => {
 $("#product-form").addEventListener("submit", (e) => {
   e.preventDefault();
 
+  const productType = getSelectedType();
+
   const productData = {
+    type: productType,
     name: $("#f-name").value.trim(),
     description: $("#f-description").value.trim(),
     unitsPerKit: Math.max(1, parseInt($("#f-units-per-kit").value) || 1),
@@ -937,23 +1271,63 @@ $("#product-form").addEventListener("submit", (e) => {
     photo: photoDataUrl,
     imageUrl: imageUrlValue || "",
     galleryImages: [...galleryImagesValue],
+    sku: $("#f-sku").value.trim(),
+    brand: $("#f-brand").value.trim(),
+    weight: parseFloat($("#f-weight").value) || 0,
+    categoryId: parseInt($("#f-category-id").value) || 0,
+    dimensions: {
+      length: parseFloat($("#f-dim-length").value) || 0,
+      width: parseFloat($("#f-dim-width").value) || 0,
+      height: parseFloat($("#f-dim-height").value) || 0,
+    },
     updatedAt: new Date().toISOString(),
   };
 
   if (editingId) {
+    // Edição: não toca em purchases/productionHistory (são editados via modais)
+    // e não permite mudar o tipo (já definido na criação)
+    const existing = Storage.get(editingId);
+    delete productData.type;
     Storage.update(editingId, productData);
   } else {
-    const firstPurchase = {
-      id: genId(),
-      createdAt: new Date().toISOString(),
-      date: $("#f-fp-date").value || todayISO(),
-      qty: Math.max(1, parseInt($("#f-fp-qty").value) || 1),
-      costProduct: parseFloat($("#f-fp-cost-product").value) || 0,
-      costTax: parseFloat($("#f-fp-cost-tax").value) || 0,
-      origin: $("#f-fp-origin").value || "nacional",
-      note: $("#f-fp-note").value.trim(),
-    };
-    Storage.add({ ...productData, purchases: [firstPurchase] });
+    // Criação: monta o primeiro histórico conforme o tipo
+    if (productType === "3d_print") {
+      const firstBatch = {
+        id: genId(),
+        createdAt: new Date().toISOString(),
+        date: $("#f-fprod-date").value || todayISO(),
+        quantity: Math.max(1, parseInt($("#f-fprod-qty").value) || 1),
+        material: $("#f-fprod-material").value || "PLA",
+        weightGrams: parseFloat($("#f-fprod-weight").value) || 0,
+        filamentCostPerKg: parseFloat($("#f-fprod-filament-cost").value) || 0,
+        hourCost: parseFloat($("#f-fprod-hour-cost").value) || 0,
+        printHours: parseInt($("#f-fprod-hours").value) || 0,
+        printMinutes: parseInt($("#f-fprod-minutes").value) || 0,
+        extraCosts: parseFloat($("#f-fprod-extras").value) || 0,
+        note: $("#f-fprod-note").value.trim(),
+      };
+      Storage.add({
+        ...productData,
+        purchases: [],
+        productionHistory: [firstBatch],
+      });
+    } else {
+      const firstPurchase = {
+        id: genId(),
+        createdAt: new Date().toISOString(),
+        date: $("#f-fp-date").value || todayISO(),
+        qty: Math.max(1, parseInt($("#f-fp-qty").value) || 1),
+        costProduct: parseFloat($("#f-fp-cost-product").value) || 0,
+        costTax: parseFloat($("#f-fp-cost-tax").value) || 0,
+        origin: $("#f-fp-origin").value || "nacional",
+        note: $("#f-fp-note").value.trim(),
+      };
+      Storage.add({
+        ...productData,
+        purchases: [firstPurchase],
+        productionHistory: [],
+      });
+    }
   }
 
   closeModal();
@@ -1056,19 +1430,215 @@ $("#purchase-form").addEventListener("submit", (e) => {
 });
 
 // ==============================================================
+// MODAL PRODUÇÃO 3D (nova/editar batch de produção)
+// ==============================================================
+const productionModal = $("#production-modal");
+let editingProductionId = null;
+let editingProductionProductId = null;
+
+/** Renderiza a lista de produções dentro do modal de edição do produto. */
+function renderProductProductionList(product) {
+  const container = $("#product-production-list");
+  container.innerHTML = "";
+
+  const history = [...(product.productionHistory || [])].sort(
+    (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+  );
+
+  if (history.length === 0) {
+    container.innerHTML = `<p class="purchase-empty">Nenhuma produção registrada.</p>`;
+    return;
+  }
+
+  history.forEach((batch, idx) => {
+    const c = calcProductionBatch(batch);
+    const item = document.createElement("div");
+    item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+    item.innerHTML = `
+      <div class="pi-date">
+        ${formatDate(batch.date)}
+        ${batch.createdAt ? `<div class="pi-time">${formatTime(batch.createdAt)}</div>` : ""}
+        ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+      </div>
+      <div class="pi-info">
+        <span class="pi-main">${c.quantity} un • ${c.weightGrams}g cada • ${formatPrintTime(c.totalMinutes)}</span>
+        <span class="pi-sub">
+          ${c.material || "PLA"} • Custo/un ${BRL(c.costUnit)}
+          ${batch.note ? ` • ${escapeHtml(batch.note)}` : ""}
+        </span>
+      </div>
+      <div>
+        <span class="pi-origin nacional">🖨️ ${c.material || "3D"}</span>
+        <div class="pi-total">${BRL(c.costTotal)}</div>
+      </div>
+      <div class="pi-actions">
+        <button type="button" data-edit-production="${batch.id}" title="Editar">✏️</button>
+        <button type="button" data-del-production="${batch.id}" title="Excluir">🗑️</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+
+  container.querySelectorAll("[data-edit-production]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const batch = product.productionHistory.find(
+        (x) => x.id === btn.dataset.editProduction
+      );
+      if (batch) openProductionModal(product.id, batch);
+    });
+  });
+
+  container.querySelectorAll("[data-del-production]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (product.productionHistory.length <= 1) {
+        alert("O produto precisa ter ao menos uma produção. Exclua o produto em vez disso.");
+        return;
+      }
+      if (!confirm("Excluir este batch de produção?")) return;
+      const updated = product.productionHistory.filter((x) => x.id !== btn.dataset.delProduction);
+      Storage.update(product.id, { productionHistory: updated });
+      renderProductProductionList(Storage.get(product.id));
+      updateLiveCalc();
+      render();
+    });
+  });
+}
+
+$("#btn-add-production").addEventListener("click", () => {
+  if (!editingId) return;
+  openProductionModal(editingId, null);
+});
+
+function openProductionModal(productId, batch = null) {
+  editingProductionProductId = productId;
+  editingProductionId = batch ? batch.id : null;
+
+  $("#production-modal-title").textContent = batch ? "Editar Produção" : "Nova Produção";
+  $("#production-id").value = batch?.id || "";
+  $("#production-product-id").value = productId;
+  $("#f-pr-date").value = batch?.date || todayISO();
+  $("#f-pr-qty").value = batch?.quantity || 1;
+  $("#f-pr-material").value = batch?.material || "PLA";
+  $("#f-pr-weight").value = batch?.weightGrams ?? "";
+  $("#f-pr-filament-cost").value = batch?.filamentCostPerKg ?? "";
+  $("#f-pr-hour-cost").value = batch?.hourCost ?? "";
+  $("#f-pr-hours").value = batch?.printHours ?? 0;
+  $("#f-pr-minutes").value = batch?.printMinutes ?? 0;
+  $("#f-pr-extras").value = batch?.extraCosts ?? "";
+  $("#f-pr-note").value = batch?.note || "";
+
+  updateProductionLiveCalc();
+  productionModal.classList.remove("hidden");
+}
+
+function closeProductionModal() {
+  productionModal.classList.add("hidden");
+  editingProductionId = null;
+  editingProductionProductId = null;
+}
+
+$("#production-modal-close").addEventListener("click", closeProductionModal);
+$("#btn-pr-cancel").addEventListener("click", closeProductionModal);
+
+["f-pr-qty", "f-pr-weight", "f-pr-filament-cost", "f-pr-hour-cost",
+ "f-pr-hours", "f-pr-minutes", "f-pr-extras"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", updateProductionLiveCalc);
+});
+
+function updateProductionLiveCalc() {
+  const c = calcProductionBatch({
+    quantity: $("#f-pr-qty").value,
+    weightGrams: $("#f-pr-weight").value,
+    filamentCostPerKg: $("#f-pr-filament-cost").value,
+    hourCost: $("#f-pr-hour-cost").value,
+    printHours: $("#f-pr-hours").value,
+    printMinutes: $("#f-pr-minutes").value,
+    extraCosts: $("#f-pr-extras").value,
+  });
+  $("#pr-unit").textContent = BRL(c.costUnit);
+  $("#pr-total").textContent = BRL(c.costTotal);
+}
+
+$("#production-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const productId = editingProductionProductId;
+  if (!productId) return;
+  const product = Storage.get(productId);
+  if (!product) return;
+
+  let originalCreatedAt = null;
+  if (editingProductionId) {
+    const existing = product.productionHistory.find((x) => x.id === editingProductionId);
+    originalCreatedAt = existing?.createdAt || null;
+  }
+
+  const batch = {
+    id: editingProductionId || genId(),
+    createdAt: originalCreatedAt || new Date().toISOString(),
+    date: $("#f-pr-date").value || todayISO(),
+    quantity: Math.max(1, parseInt($("#f-pr-qty").value) || 1),
+    material: $("#f-pr-material").value || "PLA",
+    weightGrams: parseFloat($("#f-pr-weight").value) || 0,
+    filamentCostPerKg: parseFloat($("#f-pr-filament-cost").value) || 0,
+    hourCost: parseFloat($("#f-pr-hour-cost").value) || 0,
+    printHours: parseInt($("#f-pr-hours").value) || 0,
+    printMinutes: parseInt($("#f-pr-minutes").value) || 0,
+    extraCosts: parseFloat($("#f-pr-extras").value) || 0,
+    note: $("#f-pr-note").value.trim(),
+  };
+
+  let newHistory;
+  if (editingProductionId) {
+    newHistory = product.productionHistory.map((x) =>
+      x.id === editingProductionId ? batch : x
+    );
+  } else {
+    newHistory = [...(product.productionHistory || []), batch];
+  }
+
+  Storage.update(productId, { productionHistory: newHistory });
+  closeProductionModal();
+
+  if (editingId === productId) {
+    renderProductProductionList(Storage.get(productId));
+    updateLiveCalc();
+  }
+  render();
+});
+
+// ==============================================================
 // FILTROS / BUSCA / ORDENAÇÃO
 // ==============================================================
-$("#search").addEventListener("input", render);
-$("#sort").addEventListener("change", render);
-$("#filter-profit").addEventListener("change", render);
+// Revenda — inputs com sufixo "" (os IDs originais)
+["#search", "#sort", "#filter-profit"].forEach((sel) => {
+  $(sel).addEventListener("input", render);
+  $(sel).addEventListener("change", render);
+});
+// Impressão 3D — inputs com sufixo "-3d"
+["#search-3d", "#sort-3d", "#filter-profit-3d"].forEach((sel) => {
+  $(sel).addEventListener("input", render);
+  $(sel).addEventListener("change", render);
+});
 
-function getFilteredProducts() {
+/**
+ * Filtra produtos por tipo + aplica busca/filtro/ordenação dos inputs
+ * correspondentes.
+ *
+ * @param {"resale"|"3d_print"} productType
+ * @param {""|"-3d"} idSuffix  — sufixo dos IDs dos inputs de filtro
+ */
+function getFilteredProducts(productType = "resale", idSuffix = "") {
   let list = Storage.getAll().map(migrate);
 
-  const q = $("#search").value.toLowerCase().trim();
+  // Filtro por tipo
+  list = list.filter((p) =>
+    productType === "3d_print" ? p.type === "3d_print" : p.type !== "3d_print"
+  );
+
+  const q = $(`#search${idSuffix}`).value.toLowerCase().trim();
   if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
 
-  const filter = $("#filter-profit").value;
+  const filter = $(`#filter-profit${idSuffix}`).value;
   list = list.filter((p) => {
     const c = calcProduct(p);
     if (filter === "positive") return c.totalProfit > 0;
@@ -1077,7 +1647,7 @@ function getFilteredProducts() {
     return true;
   });
 
-  const sort = $("#sort").value;
+  const sort = $(`#sort${idSuffix}`).value;
   list.sort((a, b) => {
     const ca = calcProduct(a);
     const cb = calcProduct(b);
@@ -1096,18 +1666,27 @@ function getFilteredProducts() {
 // RENDER
 // ==============================================================
 function render() {
-  renderCatalog();
+  renderCatalog("resale", "", "#catalog", "#empty-catalog");
+  renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
   renderDashboard();
-  if (!$("#view-historico").classList.contains("hidden")) {
+  if (currentView === "historico") {
     renderHistoryView();
   }
 }
 
-function renderCatalog() {
-  const list = getFilteredProducts();
-  const catalog = $("#catalog");
+/**
+ * Renderiza o catálogo de produtos de um tipo específico num container.
+ *
+ * @param {"resale"|"3d_print"} productType
+ * @param {""|"-3d"} idSuffix — sufixo dos IDs dos inputs de filtro
+ * @param {string} catalogSel — seletor CSS do container da grade
+ * @param {string} emptySel — seletor CSS da mensagem de vazio
+ */
+function renderCatalog(productType = "resale", idSuffix = "", catalogSel = "#catalog", emptySel = "#empty-catalog") {
+  const list = getFilteredProducts(productType, idSuffix);
+  const catalog = $(catalogSel);
   catalog.innerHTML = "";
-  $("#empty-catalog").classList.toggle("hidden", list.length > 0);
+  $(emptySel).classList.toggle("hidden", list.length > 0);
 
   const topIds = new Set(
     Storage.getAll()
@@ -1129,15 +1708,38 @@ function renderCatalog() {
     card.className = "product-card" + (isHot ? " hot" : "");
     card.dataset.productId = p.id;
     const imgSrc = getProductImage(p);
-    card.innerHTML = `
-      ${
-        imgSrc
-          ? `<img class="product-photo" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'product-photo-empty\\'>📦</div>'">`
-          : `<div class="product-photo-empty">📦</div>`
-      }
-      <div class="product-body">
-        <h4 class="product-name">${escapeHtml(p.name)}</h4>
+    const shopeeStatus = p.shopee_status || "draft";
+    const shopeeBadgeHtml = shopeeStatus !== "draft"
+      ? `<span class="shopee-badge shopee-mini ${shopeeStatus}">${SHOPEE_STATUS_LABELS[shopeeStatus] || shopeeStatus}</span>`
+      : "";
 
+    // Badge de tipo
+    const is3D = p.type === "3d_print";
+    const typeBadgeHtml = is3D
+      ? `<span class="type-badge print3d">🖨️ 3D</span>`
+      : `<span class="type-badge resale">🛒 Produto</span>`;
+
+    // Specs diferenciadas por tipo
+    let specsHtml;
+    if (is3D) {
+      specsHtml = `
+        <div class="product-specs">
+          <div class="spec"><span>Invest. total</span><b>${BRL(c.totalInvested)}</b></div>
+          <div class="spec"><span>Filamento</span><b>${BRL(c.totalFilamentCost || 0)}</b></div>
+          <div class="spec"><span>Tempo</span><b>${BRL(c.totalTimeCost || 0)}</b></div>
+          <div class="spec"><span>Extras</span><b>${BRL(c.totalExtras || 0)}</b></div>
+          <div class="spec"><span>Custo/un</span><b>${BRL(c.costUnit)}</b></div>
+          <div class="spec"><span>Peso médio</span><b>${(c.avgWeightPerUnit || 0).toFixed(1)}g</b></div>
+          <div class="spec"><span>Tempo total</span><b>${formatPrintTime(c.totalMinutes || 0)}</b></div>
+          <div class="spec"><span>Produzidas</span><b>${c.qtyBought} un</b></div>
+          <div class="spec"><span>Preço venda</span><b>${BRL(p.price)}</b></div>
+          <div class="spec"><span>Taxa</span><b>${PCT(p.fee)}</b></div>
+          <div class="spec"><span>Lucro/un</span><b>${BRL(c.profitPerKit)}</b></div>
+          <div class="spec"><span>Produções</span><b>${c.batchCount || 0}</b></div>
+        </div>
+      `;
+    } else {
+      specsHtml = `
         <div class="product-specs">
           <div class="spec"><span>Invest. total</span><b>${BRL(c.totalInvested)}</b></div>
           <div class="spec"><span>${c.costTax > 0 ? `Imposto (${PCT(c.taxPct)})` : "Imposto"}</span><b>${BRL(c.costTax)}</b></div>
@@ -1150,6 +1752,21 @@ function renderCatalog() {
           <div class="spec"><span>Compras</span><b>${c.purchasesCount}</b></div>
           <div class="spec"><span>Lucro/kit</span><b>${BRL(c.profitPerKit)}</b></div>
         </div>
+      `;
+    }
+
+    card.innerHTML = `
+      ${shopeeBadgeHtml}
+      ${typeBadgeHtml}
+      ${
+        imgSrc
+          ? `<img class="product-photo" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'product-photo-empty\\'>📦</div>'">`
+          : `<div class="product-photo-empty">📦</div>`
+      }
+      <div class="product-body">
+        <h4 class="product-name">${escapeHtml(p.name)}</h4>
+
+        ${specsHtml}
 
         <div class="product-profit-block">
           <span class="label">Lucro Total</span>
@@ -1306,7 +1923,7 @@ function renderHistoryView() {
     const { total, unitCost } = calcPurchase(last);
     $("#lp-product-name").textContent = last.productName;
     // Mostra data escolhida + hora em que foi registrada no sistema
-    const regTime = last.createdAt ? formatDateTime(last.createdAt).slice(-5) : "";
+    const regTime = last.createdAt ? formatTime(last.createdAt) : "";
     $("#lp-date").textContent =
       formatDate(last.date) + (regTime ? ` • registrado às ${regTime}` : "");
     $("#lp-note").textContent = last.note || "";
@@ -1357,7 +1974,7 @@ function renderHistoryView() {
         <div class="timeline-right">
           <div class="t-total">${BRL(total)}</div>
           <div class="t-date">${formatDate(pu.date)}</div>
-          ${pu.createdAt ? `<div class="t-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+          ${pu.createdAt ? `<div class="t-time">${formatTime(pu.createdAt)}</div>` : ""}
         </div>
       </div>
       <div class="timeline-metrics">
@@ -1416,7 +2033,13 @@ function openDetailsModal(product) {
     b.textContent = text;
     badges.appendChild(b);
   };
-  addBadge(`badge-${origin}`, origin);
+  // Badge de tipo
+  if (product.type === "3d_print") {
+    addBadge("badge-type-3d", "🖨️ Fabricação 3D");
+  } else {
+    addBadge("badge-type-resale", "🛒 Produto");
+    addBadge(`badge-${origin}`, origin);
+  }
   if (c.totalProfit > 0) addBadge("badge-hot", `🔥 ${PCT(c.profitOnCost)} lucro`);
   if (isLoss) addBadge("badge-loss", "⚠️ Prejuízo");
 
@@ -1434,6 +2057,9 @@ function openDetailsModal(product) {
   } else {
     linkEl.classList.add("hidden");
   }
+
+  // ---- Box Shopee ----
+  renderDetailsShopeeBox(product);
 
   // ---- Galeria de imagens ----
   const gallerySection = $("#dm-gallery-section");
@@ -1494,54 +2120,107 @@ function openDetailsModal(product) {
   profitEl.classList.toggle("loss", isLoss);
 
   // ---- Estoque ----
-  $("#dm-qty").textContent = `${c.qtyBought} un`;
-  $("#dm-units-per-kit").textContent = product.unitsPerKit || 1;
-  $("#dm-kits").textContent = c.kits;
-  $("#dm-leftover").textContent = c.leftover;
+  if (product.type === "3d_print") {
+    $("#dm-qty").textContent = `${c.qtyBought} un`;
+    $("#dm-units-per-kit").textContent = "1 (unitário)";
+    $("#dm-kits").textContent = c.kits + " prontas";
+    $("#dm-leftover").textContent = `${formatPrintTime(c.totalMinutes || 0)} total`;
+  } else {
+    $("#dm-qty").textContent = `${c.qtyBought} un`;
+    $("#dm-units-per-kit").textContent = product.unitsPerKit || 1;
+    $("#dm-kits").textContent = c.kits;
+    $("#dm-leftover").textContent = c.leftover;
+  }
 
-  // ---- Histórico ----
+  // ---- Histórico (compras OU produção conforme o tipo) ----
   const history = $("#dm-history");
   history.innerHTML = "";
-  const purchases = [...(product.purchases || [])].sort(
-    (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
-  );
-  if (purchases.length === 0) {
-    history.innerHTML = `<p class="purchase-empty">Nenhuma compra registrada.</p>`;
-    $("#dm-last-purchase-info").textContent = "";
-  } else {
-    const last = purchases[0];
-    const { total: lastTotal } = calcPurchase(last);
-    const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
-    $("#dm-last-purchase-info").textContent =
-      `Última compra: ${formatDate(last.date)}${lastReg} • ${BRL(lastTotal)}`;
+  const historyTitleEl = history.closest(".details-section").querySelector("h4");
 
-    purchases.forEach((pu, idx) => {
-      const { total, unitCost } = calcPurchase(pu);
-      const item = document.createElement("div");
-      item.className = "purchase-item" + (idx === 0 ? " latest" : "");
-      item.innerHTML = `
-        <div class="pi-date">
-          ${formatDate(pu.date)}
-          ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
-          ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
-        </div>
-        <div class="pi-info">
-          <span class="pi-main">${pu.qty} un • ${BRL(pu.costProduct)} produto${
-            pu.costTax > 0 ? ` + ${BRL(pu.costTax)} imposto` : ""
-          }</span>
-          <span class="pi-sub">
-            Custo/un ${BRL(unitCost)}
-            ${pu.note ? ` • ${escapeHtml(pu.note)}` : ""}
-          </span>
-        </div>
-        <div>
-          <span class="pi-origin ${pu.origin || "nacional"}">${pu.origin || "nacional"}</span>
-          <div class="pi-total">${BRL(total)}</div>
-        </div>
-        <div></div>
-      `;
-      history.appendChild(item);
-    });
+  if (product.type === "3d_print") {
+    historyTitleEl.textContent = "🖨️ Histórico de produção";
+    const batches = [...(product.productionHistory || [])].sort(
+      (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+    );
+    if (batches.length === 0) {
+      history.innerHTML = `<p class="purchase-empty">Nenhuma produção registrada.</p>`;
+      $("#dm-last-purchase-info").textContent = "";
+    } else {
+      const last = batches[0];
+      const lastCalc = calcProductionBatch(last);
+      const lastReg = last.createdAt ? ` às ${formatTime(last.createdAt)}` : "";
+      $("#dm-last-purchase-info").textContent =
+        `Última produção: ${formatDate(last.date)}${lastReg} • ${BRL(lastCalc.costTotal)}`;
+
+      batches.forEach((batch, idx) => {
+        const cb = calcProductionBatch(batch);
+        const item = document.createElement("div");
+        item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+        item.innerHTML = `
+          <div class="pi-date">
+            ${formatDate(batch.date)}
+            ${batch.createdAt ? `<div class="pi-time">${formatTime(batch.createdAt)}</div>` : ""}
+            ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+          </div>
+          <div class="pi-info">
+            <span class="pi-main">${cb.quantity} un • ${cb.weightGrams}g cada • ${formatPrintTime(cb.totalMinutes)}</span>
+            <span class="pi-sub">
+              Filamento ${BRL(cb.filamentCost)} • Tempo ${BRL(cb.timeCost)} • Extras ${BRL(cb.extraCosts)}
+              ${batch.note ? ` • ${escapeHtml(batch.note)}` : ""}
+            </span>
+          </div>
+          <div>
+            <span class="pi-origin nacional">🖨️ ${cb.material || "3D"}</span>
+            <div class="pi-total">${BRL(cb.costTotal)}</div>
+          </div>
+          <div></div>
+        `;
+        history.appendChild(item);
+      });
+    }
+  } else {
+    historyTitleEl.textContent = "📜 Histórico de compras";
+    const purchases = [...(product.purchases || [])].sort(
+      (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+    );
+    if (purchases.length === 0) {
+      history.innerHTML = `<p class="purchase-empty">Nenhuma compra registrada.</p>`;
+      $("#dm-last-purchase-info").textContent = "";
+    } else {
+      const last = purchases[0];
+      const { total: lastTotal } = calcPurchase(last);
+      const lastReg = last.createdAt ? ` às ${formatTime(last.createdAt)}` : "";
+      $("#dm-last-purchase-info").textContent =
+        `Última compra: ${formatDate(last.date)}${lastReg} • ${BRL(lastTotal)}`;
+
+      purchases.forEach((pu, idx) => {
+        const { total, unitCost } = calcPurchase(pu);
+        const item = document.createElement("div");
+        item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+        item.innerHTML = `
+          <div class="pi-date">
+            ${formatDate(pu.date)}
+            ${pu.createdAt ? `<div class="pi-time">${formatTime(pu.createdAt)}</div>` : ""}
+            ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+          </div>
+          <div class="pi-info">
+            <span class="pi-main">${pu.qty} un • ${BRL(pu.costProduct)} produto${
+              pu.costTax > 0 ? ` + ${BRL(pu.costTax)} imposto` : ""
+            }</span>
+            <span class="pi-sub">
+              Custo/un ${BRL(unitCost)}
+              ${pu.note ? ` • ${escapeHtml(pu.note)}` : ""}
+            </span>
+          </div>
+          <div>
+            <span class="pi-origin ${pu.origin || "nacional"}">${pu.origin || "nacional"}</span>
+            <div class="pi-total">${BRL(total)}</div>
+          </div>
+          <div></div>
+        `;
+        history.appendChild(item);
+      });
+    }
   }
 
   detailsModal.classList.remove("hidden");
@@ -1610,6 +2289,245 @@ ${p.link ? `• Link: ${p.link}` : ""}`.trim();
     setTimeout(() => (btn.textContent = original), 1800);
   }
 });
+
+// ==============================================================
+// INTEGRAÇÃO SHOPEE
+// ==============================================================
+
+/** Mapa de status legíveis para o badge/UI. */
+const SHOPEE_STATUS_LABELS = {
+  draft:     "DRAFT",
+  pending:   "⏳ ENVIANDO",
+  published: "✅ PUBLICADO",
+  error:     "❌ ERRO",
+};
+
+/**
+ * Envia o produto para a Shopee via backend local.
+ * Atualiza o produto no storage com o novo status.
+ * Re-renderiza o catálogo e (se aberto) o modal de detalhes.
+ */
+async function handleSendToShopee(productId) {
+  const product = Storage.get(productId);
+  if (!product) return;
+
+  // Validações mínimas antes de bater no backend
+  if (!product.description || product.description.trim().length < 20) {
+    alert(
+      "⚠️ A Shopee exige descrição com no mínimo 20 caracteres.\n\n" +
+      "Edite o produto e adicione uma descrição mais completa antes de enviar."
+    );
+    return;
+  }
+  if (!getProductImage(product)) {
+    alert("⚠️ O produto precisa ter ao menos uma imagem.");
+    return;
+  }
+
+  // Marca como "pending" e re-renderiza
+  Storage.update(productId, {
+    shopee_status: "pending",
+    shopee_error: null,
+    updatedAt: new Date().toISOString(),
+  });
+  render();
+  if (detailsProductId === productId) {
+    renderDetailsShopeeBox(Storage.get(productId));
+  }
+
+  try {
+    const result = await sendProductToShopee(product);
+    Storage.update(productId, {
+      shopee_status: "published",
+      shopee_item_id: result.item_id,
+      shopee_synced_at: result.synced_at,
+      shopee_mode: result.mode,
+      shopee_error: null,
+      updatedAt: new Date().toISOString(),
+    });
+    const modeTag = result.mode === "mock" ? " (modo simulação)" : "";
+    alert(`✅ Produto enviado para a Shopee${modeTag}!\n\nitem_id: ${result.item_id}`);
+  } catch (err) {
+    console.error("Erro ao enviar para Shopee:", err);
+    Storage.update(productId, {
+      shopee_status: "error",
+      shopee_error: err.message || String(err),
+      updatedAt: new Date().toISOString(),
+    });
+    const category = err.category || "unknown";
+    const hints = {
+      network: "Verifique se o backend está rodando em background.\nAbra Configurações para testar a conexão.",
+      unauthorized: "Token X-CZ-Token inválido. Atualize em Configurações.",
+      validation: "Verifique os dados do produto (nome, descrição ≥20 chars, imagem).",
+      transient: "Shopee retornou erro temporário. Tente novamente em alguns segundos.",
+      shopee_logic_error: "A Shopee recusou os dados. Confira as credenciais e o formato.",
+      parse_error: "Resposta do backend corrompida. Reinicie o servidor.",
+    };
+    const hint = hints[category] ? "\n\n💡 " + hints[category] : "";
+    alert(`❌ Erro ao enviar para a Shopee:\n\n${err.message || err}${hint}`);
+  }
+
+  render();
+  if (detailsProductId === productId) {
+    renderDetailsShopeeBox(Storage.get(productId));
+  }
+}
+
+/** Renderiza o box de Shopee no modal de detalhes. */
+function renderDetailsShopeeBox(product) {
+  const status = product.shopee_status || "draft";
+  const badge = $("#dm-shopee-status");
+  badge.className = "shopee-badge " + status;
+  badge.textContent = SHOPEE_STATUS_LABELS[status] || status.toUpperCase();
+
+  const meta = $("#dm-shopee-meta");
+  const parts = [];
+  if (product.shopee_item_id) {
+    parts.push(`<div>ID do anúncio: <b>${product.shopee_item_id}</b></div>`);
+  }
+  if (product.shopee_synced_at) {
+    parts.push(`<div>Última sincronização: <b>${formatDateTime(product.shopee_synced_at)}</b></div>`);
+  }
+  if (product.shopee_mode) {
+    const modeLabel = product.shopee_mode === "mock" ? "🧪 Simulação" : "🔴 Shopee real";
+    parts.push(`<div>Modo: <b>${modeLabel}</b></div>`);
+  }
+  if (product.shopee_error) {
+    parts.push(`<div class="shopee-error-msg">${escapeHtml(product.shopee_error)}</div>`);
+  }
+  if (parts.length === 0) {
+    parts.push(`<div style="color:var(--text-dim);font-style:italic">Este produto ainda não foi enviado para a Shopee.</div>`);
+  }
+  meta.innerHTML = parts.join("");
+}
+
+// Handler do botão no modal de detalhes
+$("#dm-send-shopee").addEventListener("click", async () => {
+  if (!detailsProductId) return;
+  if (!confirm("Enviar este produto para a Shopee agora?")) return;
+  $("#dm-send-shopee").disabled = true;
+  try {
+    await handleSendToShopee(detailsProductId);
+  } finally {
+    $("#dm-send-shopee").disabled = false;
+  }
+});
+
+// ==============================================================
+// MODAL DE CONFIGURAÇÕES (backend URL + token)
+// ==============================================================
+const settingsModal = $("#settings-modal");
+
+$("#nav-settings").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("#cfg-backend-url").value = localStorage.getItem("cz_backend_url") || "";
+  $("#cfg-api-token").value = localStorage.getItem("cz_api_token") || "";
+  $("#backend-status-box").innerHTML = "Clique em <b>Testar conexão</b> para verificar o backend.";
+  $("#backend-status-box").className = "backend-status-box";
+  settingsModal.classList.remove("hidden");
+});
+
+$("#settings-close").addEventListener("click", () => {
+  settingsModal.classList.add("hidden");
+});
+
+$("#btn-toggle-token-view").addEventListener("click", () => {
+  const input = $("#cfg-api-token");
+  input.type = input.type === "password" ? "text" : "password";
+});
+
+$("#btn-save-settings").addEventListener("click", () => {
+  setBackendConfig({
+    url: $("#cfg-backend-url").value.trim(),
+    token: $("#cfg-api-token").value.trim(),
+  });
+  settingsModal.classList.add("hidden");
+  updateBackendStatusPill();
+  alert("✅ Configurações salvas!");
+});
+
+$("#btn-test-backend").addEventListener("click", async () => {
+  const box = $("#backend-status-box");
+  box.className = "backend-status-box";
+  box.textContent = "⏳ Testando conexão...";
+
+  // Aplica temporariamente os valores do form para o teste
+  const tempUrl = $("#cfg-backend-url").value.trim();
+  const tempToken = $("#cfg-api-token").value.trim();
+  const prevUrl = localStorage.getItem("cz_backend_url");
+  const prevToken = localStorage.getItem("cz_api_token");
+  setBackendConfig({ url: tempUrl, token: tempToken });
+
+  try {
+    const health = await getBackendHealth();
+    if (!health) {
+      box.className = "backend-status-box error";
+      box.innerHTML = "❌ Backend inacessível.<br>Confira a URL e se o servidor está rodando.";
+      return;
+    }
+    const status = await getShopeeBackendStatus();
+    if (!status || !status.ok) {
+      if (status && status.status === 401) {
+        box.className = "backend-status-box error";
+        box.innerHTML = "❌ Token inválido. Ajuste o valor e tente novamente.";
+        return;
+      }
+      box.className = "backend-status-box error";
+      box.innerHTML = "❌ Endpoint Shopee indisponível.";
+      return;
+    }
+
+    const modeLabel =
+      health.mode === "mock" ? "🧪 MOCK (simulação)" : "🔴 LIVE (Shopee real)";
+    const authLabel = health.auth_required ? "🔐 Sim" : "🔓 Não";
+    box.className = "backend-status-box success";
+    box.innerHTML = `
+      ✅ Backend conectado<br>
+      <b>Versão:</b> ${health.version}<br>
+      <b>Modo:</b> ${modeLabel}<br>
+      <b>Ambiente:</b> ${health.env}<br>
+      <b>Autenticação:</b> ${authLabel}<br>
+      ${status.has_tokens ? `<b>Tokens Shopee:</b> ${status.token_expired ? "expirados" : "válidos"}<br>` : ""}
+    `;
+  } catch (err) {
+    box.className = "backend-status-box error";
+    box.innerHTML = `❌ Erro: ${escapeHtml(err.message)}`;
+  } finally {
+    // Não reverte — se o teste foi explícito, respeita
+    // (o botão Salvar é quem persiste; mas já deixamos aplicado para testar)
+  }
+});
+
+/** Atualiza o badge de status do backend no sidebar. */
+async function updateBackendStatusPill() {
+  const pill = $("#backend-status-pill");
+  if (!pill) return;
+  pill.className = "backend-pill";
+  pill.textContent = "⏳ verificando...";
+  try {
+    const health = await getBackendHealth();
+    if (!health) {
+      pill.className = "backend-pill offline";
+      pill.textContent = "● backend offline";
+      return;
+    }
+    if (health.mode === "mock") {
+      pill.className = "backend-pill online-mock";
+      pill.textContent = "● MOCK";
+    } else {
+      pill.className = "backend-pill online-live";
+      pill.textContent = "● LIVE";
+    }
+  } catch {
+    pill.className = "backend-pill offline";
+    pill.textContent = "● backend offline";
+  }
+}
+
+// Checa backend ao abrir
+updateBackendStatusPill();
+// Revalida a cada 30s
+setInterval(updateBackendStatusPill, 30000);
 
 // ==============================================================
 // IMPORTAÇÃO DE EXCEL (.xlsx)
@@ -1767,6 +2685,40 @@ function pick(row, keys) {
 }
 
 // ==============================================================
+// ATALHOS DE TECLADO
+// ==============================================================
+// ESC fecha o modal aberto mais próximo (nesta ordem de prioridade)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+
+  // Modais aninhados têm prioridade (fecham primeiro)
+  if (!$("#purchase-modal").classList.contains("hidden")) {
+    closePurchaseModal();
+    return;
+  }
+  if (!$("#production-modal").classList.contains("hidden")) {
+    closeProductionModal();
+    return;
+  }
+  if (!$("#details-modal").classList.contains("hidden")) {
+    closeDetailsModal();
+    return;
+  }
+  if (!$("#settings-modal").classList.contains("hidden")) {
+    $("#settings-modal").classList.add("hidden");
+    return;
+  }
+  if (!$("#modal").classList.contains("hidden")) {
+    closeModal();
+    return;
+  }
+});
+
+// ==============================================================
 // INIT
 // ==============================================================
+// Restaura a última view que o usuário estava usando (sobrevive ao F5)
+const savedView = localStorage.getItem("cz_current_view") || "dashboard";
+switchToView(savedView);
+
 render();
