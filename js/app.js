@@ -1197,7 +1197,7 @@ function renderProductPurchasesList(product) {
     item.innerHTML = `
       <div class="pi-date">
         ${formatDate(pu.date)}
-        ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+        ${pu.createdAt ? `<div class="pi-time">${formatTime(pu.createdAt)}</div>` : ""}
         ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
       </div>
       <div class="pi-info">
@@ -1457,7 +1457,7 @@ function renderProductProductionList(product) {
     item.innerHTML = `
       <div class="pi-date">
         ${formatDate(batch.date)}
-        ${batch.createdAt ? `<div class="pi-time">${formatDateTime(batch.createdAt).slice(-5)}</div>` : ""}
+        ${batch.createdAt ? `<div class="pi-time">${formatTime(batch.createdAt)}</div>` : ""}
         ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
       </div>
       <div class="pi-info">
@@ -1923,7 +1923,7 @@ function renderHistoryView() {
     const { total, unitCost } = calcPurchase(last);
     $("#lp-product-name").textContent = last.productName;
     // Mostra data escolhida + hora em que foi registrada no sistema
-    const regTime = last.createdAt ? formatDateTime(last.createdAt).slice(-5) : "";
+    const regTime = last.createdAt ? formatTime(last.createdAt) : "";
     $("#lp-date").textContent =
       formatDate(last.date) + (regTime ? ` • registrado às ${regTime}` : "");
     $("#lp-note").textContent = last.note || "";
@@ -1974,7 +1974,7 @@ function renderHistoryView() {
         <div class="timeline-right">
           <div class="t-total">${BRL(total)}</div>
           <div class="t-date">${formatDate(pu.date)}</div>
-          ${pu.createdAt ? `<div class="t-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+          ${pu.createdAt ? `<div class="t-time">${formatTime(pu.createdAt)}</div>` : ""}
         </div>
       </div>
       <div class="timeline-metrics">
@@ -2148,7 +2148,7 @@ function openDetailsModal(product) {
     } else {
       const last = batches[0];
       const lastCalc = calcProductionBatch(last);
-      const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
+      const lastReg = last.createdAt ? ` às ${formatTime(last.createdAt)}` : "";
       $("#dm-last-purchase-info").textContent =
         `Última produção: ${formatDate(last.date)}${lastReg} • ${BRL(lastCalc.costTotal)}`;
 
@@ -2159,7 +2159,7 @@ function openDetailsModal(product) {
         item.innerHTML = `
           <div class="pi-date">
             ${formatDate(batch.date)}
-            ${batch.createdAt ? `<div class="pi-time">${formatDateTime(batch.createdAt).slice(-5)}</div>` : ""}
+            ${batch.createdAt ? `<div class="pi-time">${formatTime(batch.createdAt)}</div>` : ""}
             ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
           </div>
           <div class="pi-info">
@@ -2189,7 +2189,7 @@ function openDetailsModal(product) {
     } else {
       const last = purchases[0];
       const { total: lastTotal } = calcPurchase(last);
-      const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
+      const lastReg = last.createdAt ? ` às ${formatTime(last.createdAt)}` : "";
       $("#dm-last-purchase-info").textContent =
         `Última compra: ${formatDate(last.date)}${lastReg} • ${BRL(lastTotal)}`;
 
@@ -2200,7 +2200,7 @@ function openDetailsModal(product) {
         item.innerHTML = `
           <div class="pi-date">
             ${formatDate(pu.date)}
-            ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+            ${pu.createdAt ? `<div class="pi-time">${formatTime(pu.createdAt)}</div>` : ""}
             ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
           </div>
           <div class="pi-info">
