@@ -158,31 +158,47 @@ let editingPurchaseProductId = null;
 // ---------- Navegação entre views ----------
 let currentView = "dashboard";
 
+const VIEW_TITLES = {
+  dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
+  produtos:    ["Produtos", "Itens comprados prontos para revender"],
+  impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
+  historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
+};
+
+/**
+ * Ativa uma view. Usada tanto pelo click do usuário quanto pela
+ * restauração do estado ao recarregar a página (F5).
+ */
+function switchToView(view) {
+  if (!VIEW_TITLES[view]) view = "dashboard";
+  currentView = view;
+
+  // Atualiza a classe .active no link correspondente
+  $$(".nav-link").forEach((l) => l.classList.remove("active"));
+  const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
+  if (activeLink) activeLink.classList.add("active");
+
+  // Mostra/esconde as seções
+  $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
+  $("#view-produtos").classList.toggle("hidden", view !== "produtos");
+  $("#view-impressao3d").classList.toggle("hidden", view !== "impressao3d");
+  $("#view-historico").classList.toggle("hidden", view !== "historico");
+
+  // Título e subtítulo no topo
+  const [t, s] = VIEW_TITLES[view];
+  $("#view-title").textContent = t;
+  $("#view-subtitle").textContent = s;
+
+  // Persiste a escolha para sobreviver ao F5
+  localStorage.setItem("cz_current_view", view);
+
+  if (view === "historico") renderHistoryView();
+}
+
 $$(".nav-link[data-view]").forEach((link) => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
-    const view = link.dataset.view;
-    currentView = view;
-
-    $$(".nav-link").forEach((l) => l.classList.remove("active"));
-    link.classList.add("active");
-
-    $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
-    $("#view-produtos").classList.toggle("hidden", view !== "produtos");
-    $("#view-impressao3d").classList.toggle("hidden", view !== "impressao3d");
-    $("#view-historico").classList.toggle("hidden", view !== "historico");
-
-    const titles = {
-      dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
-      produtos:    ["Produtos", "Itens comprados prontos para revender"],
-      impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
-      historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
-    };
-    const [t, s] = titles[view] || titles.dashboard;
-    $("#view-title").textContent = t;
-    $("#view-subtitle").textContent = s;
-
-    if (view === "historico") renderHistoryView();
+    switchToView(link.dataset.view);
   });
 });
 
@@ -2604,6 +2620,40 @@ function pick(row, keys) {
 }
 
 // ==============================================================
+// ATALHOS DE TECLADO
+// ==============================================================
+// ESC fecha o modal aberto mais próximo (nesta ordem de prioridade)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+
+  // Modais aninhados têm prioridade (fecham primeiro)
+  if (!$("#purchase-modal").classList.contains("hidden")) {
+    closePurchaseModal();
+    return;
+  }
+  if (!$("#production-modal").classList.contains("hidden")) {
+    closeProductionModal();
+    return;
+  }
+  if (!$("#details-modal").classList.contains("hidden")) {
+    closeDetailsModal();
+    return;
+  }
+  if (!$("#settings-modal").classList.contains("hidden")) {
+    $("#settings-modal").classList.add("hidden");
+    return;
+  }
+  if (!$("#modal").classList.contains("hidden")) {
+    closeModal();
+    return;
+  }
+});
+
+// ==============================================================
 // INIT
 // ==============================================================
+// Restaura a última view que o usuário estava usando (sobrevive ao F5)
+const savedView = localStorage.getItem("cz_current_view") || "dashboard";
+switchToView(savedView);
+
 render();
