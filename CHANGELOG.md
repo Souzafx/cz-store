@@ -4,7 +4,52 @@ Todas as mudanças importantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
-## [2.2.0] — Versão atual · Produção segura
+## [2.3.0] — Versão atual · Deploy-ready
+
+### Adicionado
+- 🌐 **`frontend-server.js`** — servidor HTTP estático zero-dependency
+  servindo em http://localhost:3030 (só usa módulos nativos de Node)
+- 🚀 **`netlify.toml`** — configuração de deploy pro Netlify com build
+  que copia só frontend (exclui `backend/` do deploy)
+- 🛒 **Produtos fabricados em impressão 3D** como novo tipo de produto
+  ao lado de revenda (type="3d_print")
+- 🖨️ **Histórico de produção** separado do histórico de compras
+- 💰 **Custo por hora de impressão** (substituiu modelo de energia kWh)
+- 🏷️ **Material** do filamento (PLA/PETG/ABS/TPU/Nylon/Resina/Outro)
+- 📐 **Cálculos específicos de 3D**: filamento + tempo + extras,
+  preço sugerido para X% de lucro, margem líquida, etc
+- 📦 **Páginas separadas**: Revenda e Impressão 3D como abas
+  independentes na sidebar, cada uma com filtros próprios
+- ✨ **Gerador de descrição comercial** baseado em templates com
+  10 categorias e 3 variações por bloco (243 combinações)
+- 🎨 **Seção colapsável "Dados para Shopee"** no formulário
+- 🕒 **Persistência de view** no F5 (localStorage + CSS inline)
+- ⌨️ **ESC fecha modais** (ordem de prioridade de aninhamento)
+- 🔒 **Ocultação reversível** do botão Importar Excel
+
+### Corrigido
+- Flash de dashboard ao dar F5 em outra view (CSS inline no head)
+- Layout shift do título/subtítulo no primeiro paint (inline script
+  síncrono substitui approach :empty::before)
+- Sobreposição dos badges "Produto" e "TOP" no card (reposicionado)
+- Padding interno do modal de nova compra (respiro lateral)
+- Submit bloqueado em modo edição (campos required ocultos disabled)
+- Select "Origem" com estilo nativo do macOS (dark theme aplicado)
+
+### Refatorado
+- Helper `formatTime()` em format.js elimina 8 duplicações de `.slice(-5)`
+- Labels "Revenda" → "Produto" em toda a UI
+- `calcProduct` vira dispatcher entre `calcProductResale` e `calcProduct3D`
+
+### Segurança
+- CORS do backend Shopee aceita `localhost:3030` (frontend server)
+- Headers de segurança no Netlify (X-Frame-Options, CSP, etc)
+- Backend continua não deploy no Netlify (só frontend estático)
+- Para Shopee em produção: backend precisa ir pra Render/Fly/Railway
+
+---
+
+## [2.2.0] · Produção segura
 
 ### Adicionado
 - 🛡️ **helmet** — headers de segurança (XSS, clickjacking, MIME sniffing)

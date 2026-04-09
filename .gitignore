@@ -30,7 +30,7 @@ pnpm-debug.log*
 package-lock.json.backup
 
 # ---- Build / dist ----
-dist/
+dist/           # gerado pelo build do Netlify (e pelo teste local)
 build/
 out/
 .cache/

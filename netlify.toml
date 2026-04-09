@@ -1,0 +1,52 @@
+# ============================================
+# CZ Store — Configuração do Netlify
+# ============================================
+# Estratégia: build copia apenas os arquivos do frontend para dist/.
+# O backend/ fica fora do deploy (é servidor Node.js, não static).
+# ============================================
+
+[build]
+  # O comando copia só os arquivos necessários para dist/
+  # (evita publicar backend/, node_modules/, docs internos, etc)
+  command = "rm -rf dist && mkdir -p dist && cp index.html dist/ && cp -r css js lib dist/"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# ============================================
+# Headers HTTP
+# ============================================
+
+# Segurança global
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options            = "SAMEORIGIN"
+    X-Content-Type-Options     = "nosniff"
+    Referrer-Policy            = "strict-origin-when-cross-origin"
+    Permissions-Policy         = "camera=(), microphone=(), geolocation=()"
+    # Cache curto + revalidação: atualizações aparecem rápido
+    Cache-Control              = "public, max-age=0, must-revalidate"
+
+# CSS, JS e libs podem ter cache um pouco maior
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/lib/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# ============================================
+# Redirects (SPA-style fallback desabilitado)
+# ============================================
+# Esse é um site estático simples, sem roteamento cliente-side,
+# então não precisamos de fallback para /index.html.
