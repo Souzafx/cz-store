@@ -6,11 +6,18 @@
   <title>CZ • Controle de Produtos</title>
 
   <!--
-    PRE-PAINT: esconde todas as views e revela só a última visitada.
+    PRE-PAINT: restaura a última view visitada antes do primeiro paint.
     Precisa ser INLINE (não via arquivo externo) para rodar antes do
-    primeiro paint. Isso elimina o flash do dashboard no F5.
+    body ser renderizado. Isso elimina o "flash" do dashboard no F5.
+
+    Cobre 4 elementos da UI:
+      1) #view-* (conteúdo das views)
+      2) #view-title (título do topbar)
+      3) #view-subtitle (subtítulo do topbar)
+      4) .nav-link.active (item destacado na sidebar)
   -->
   <style>
+    /* (1) Views — só a correspondente ao atributo fica visível */
     #view-dashboard,
     #view-produtos,
     #view-impressao3d,
@@ -20,6 +27,33 @@
     html[data-initial-view="produtos"]    #view-produtos,
     html[data-initial-view="impressao3d"] #view-impressao3d,
     html[data-initial-view="historico"]   #view-historico { display: block; }
+
+    /* (2) e (3) Topbar — textos injetados via CSS antes do JS carregar.
+       Os elementos ficam vazios no HTML; :empty::before preenche.
+       Quando o JS rodar e setar textContent, o :empty some e o texto
+       real fica, sem duplicação. */
+    html[data-initial-view="dashboard"]   #view-title:empty::before { content: "Dashboard"; }
+    html[data-initial-view="produtos"]    #view-title:empty::before { content: "Produtos"; }
+    html[data-initial-view="impressao3d"] #view-title:empty::before { content: "Impressão 3D"; }
+    html[data-initial-view="historico"]   #view-title:empty::before { content: "Histórico de Compras"; }
+
+    html[data-initial-view="dashboard"]   #view-subtitle:empty::before { content: "Resumo financeiro da sua loja"; }
+    html[data-initial-view="produtos"]    #view-subtitle:empty::before { content: "Itens comprados prontos para revender"; }
+    html[data-initial-view="impressao3d"] #view-subtitle:empty::before { content: "Produtos fabricados por você"; }
+    html[data-initial-view="historico"]   #view-subtitle:empty::before { content: "Linha do tempo de todas as compras"; }
+
+    /* (4) Sidebar — link ativo baseado na view atual. Usa attr selector
+       para marcar o link correspondente sem precisar de JS.
+       O estilo .active vem do style.css externo. */
+    html[data-initial-view="dashboard"]   .nav-link[data-view="dashboard"],
+    html[data-initial-view="produtos"]    .nav-link[data-view="produtos"],
+    html[data-initial-view="impressao3d"] .nav-link[data-view="impressao3d"],
+    html[data-initial-view="historico"]   .nav-link[data-view="historico"] {
+      background: linear-gradient(90deg, rgba(229, 9, 20, 0.22), transparent);
+      color: #fff !important;
+      border-left-color: #e50914 !important;
+      box-shadow: inset 0 0 20px rgba(229, 9, 20, 0.08);
+    }
   </style>
   <script>
     (function () {
@@ -44,7 +78,7 @@
     </div>
 
     <nav>
-      <a href="#dashboard" class="nav-link active" data-view="dashboard">
+      <a href="#dashboard" class="nav-link" data-view="dashboard">
         <span class="icon">📊</span> Dashboard
       </a>
       <a href="#produtos" class="nav-link" data-view="produtos">
@@ -72,8 +106,10 @@
     <!-- Topbar -->
     <header class="topbar">
       <div>
-        <h2 id="view-title">Dashboard</h2>
-        <p id="view-subtitle">Resumo financeiro da sua loja</p>
+        <!-- Textos preenchidos pelo <style> inline no head (via :empty::before)
+             antes do JS carregar. O JS depois chama .textContent e substitui. -->
+        <h2 id="view-title"></h2>
+        <p id="view-subtitle"></p>
       </div>
       <div class="topbar-actions">
         <!--
