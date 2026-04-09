@@ -174,7 +174,7 @@ $$(".nav-link[data-view]").forEach((link) => {
 
     const titles = {
       dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
-      produtos:    ["Produtos de Revenda", "Itens comprados prontos para revender"],
+      produtos:    ["Produtos", "Itens comprados prontos para revender"],
       impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
       historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
     };
@@ -1627,7 +1627,7 @@ function renderCatalog(productType = "resale", idSuffix = "", catalogSel = "#cat
     const is3D = p.type === "3d_print";
     const typeBadgeHtml = is3D
       ? `<span class="type-badge print3d">🖨️ 3D</span>`
-      : `<span class="type-badge resale">🛒 Revenda</span>`;
+      : `<span class="type-badge resale">🛒 Produto</span>`;
 
     // Specs diferenciadas por tipo
     let specsHtml;
@@ -1947,7 +1947,7 @@ function openDetailsModal(product) {
   if (product.type === "3d_print") {
     addBadge("badge-type-3d", "🖨️ Fabricação 3D");
   } else {
-    addBadge("badge-type-resale", "🛒 Revenda");
+    addBadge("badge-type-resale", "🛒 Produto");
     addBadge(`badge-${origin}`, origin);
   }
   if (c.totalProfit > 0) addBadge("badge-hot", `🔥 ${PCT(c.profitOnCost)} lucro`);
