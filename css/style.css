@@ -189,6 +189,35 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 }
 .btn-danger:hover { background: var(--danger); color: #fff; }
 
+/* Botão Shopee — cor laranja Shopee */
+.btn-shopee {
+  padding: 11px 20px;
+  border-radius: 8px;
+  border: 1px solid #ff5722;
+  background: linear-gradient(135deg, #ff5722, #e64a19);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(255, 87, 34, 0.35);
+}
+.btn-shopee:hover {
+  background: linear-gradient(135deg, #ff6e3e, #f05921);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 87, 34, 0.55);
+}
+.btn-shopee:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .icon-btn {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -1324,6 +1353,64 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   font-size: 11px;
   color: var(--text-soft);
   font-style: italic;
+}
+
+/* ===================== BADGE DE STATUS SHOPEE ===================== */
+.shopee-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border: 1px solid;
+}
+.shopee-badge.draft     { background: rgba(113, 113, 122, 0.15); color: #a1a1aa; border-color: #52525b; }
+.shopee-badge.pending   { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border-color: #f59e0b; }
+.shopee-badge.published { background: rgba(34, 197, 94, 0.15);  color: #22c55e; border-color: #22c55e; }
+.shopee-badge.error     { background: rgba(239, 68, 68, 0.15);  color: var(--danger); border-color: var(--danger); }
+
+.shopee-mini {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+}
+
+/* ---- Box de Shopee no modal de detalhes ---- */
+.shopee-box {
+  padding: 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  border-left: 3px solid #ff5722;
+}
+.shopee-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.shopee-status .label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.shopee-meta {
+  font-size: 11px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+.shopee-meta b { color: #fff; }
+.shopee-meta .shopee-error-msg {
+  color: var(--danger);
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 /* ===================== MODAL DE DETALHES ===================== */

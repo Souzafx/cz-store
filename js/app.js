@@ -1,17 +1,24 @@
 /* ============================================
    app.js — Lógica principal da aplicação
 
-   MODELO DE DADOS (v7):
+   MODELO DE DADOS (v8):
    ---------------------
    product = {
      id, name, description, unitsPerKit, price, fee, link,
-     photo,             // base64 de upload local (legado + novo)
-     imageUrl,          // URL externa PRINCIPAL
-     galleryImages,     // URLs extras (galeria)
+     photo, imageUrl, galleryImages,
      createdAt, updatedAt,
-     purchases: [
-       { id, date, qty, costProduct, costTax, note, origin }
-     ]
+     purchases: [ { id, date, qty, costProduct, costTax, note, origin } ],
+
+     // ----- Dados Shopee (opcional) -----
+     sku, brand, weight, categoryId,
+     dimensions: { length, width, height },
+
+     // ----- Estado de integração Shopee -----
+     shopee_status,     // "draft" | "pending" | "published" | "error"
+     shopee_item_id,    // ID retornado pela Shopee
+     shopee_synced_at,  // timestamp ISO da última sincronização
+     shopee_error,      // mensagem de erro, se shopee_status === "error"
+     shopee_mode,       // "mock" | "live" — de onde veio a resposta
    }
 
    Resolução de imagem: imageUrl → photo → galleryImages[0] → placeholder.
@@ -178,6 +185,15 @@ function openModal(product = null) {
   $("#image-url-status").classList.add("hidden");
   $("#f-import-url").value = "";
   $("#import-status").classList.add("hidden");
+
+  // Dados Shopee (opcionais)
+  $("#f-sku").value = product?.sku || "";
+  $("#f-brand").value = product?.brand || "";
+  $("#f-weight").value = product?.weight ?? "";
+  $("#f-category-id").value = product?.categoryId ?? "";
+  $("#f-dim-length").value = product?.dimensions?.length ?? "";
+  $("#f-dim-width").value = product?.dimensions?.width ?? "";
+  $("#f-dim-height").value = product?.dimensions?.height ?? "";
 
   // Preview: prioridade URL → upload base64
   updateImagePreview();
@@ -937,6 +953,16 @@ $("#product-form").addEventListener("submit", (e) => {
     photo: photoDataUrl,
     imageUrl: imageUrlValue || "",
     galleryImages: [...galleryImagesValue],
+    // Dados para Shopee
+    sku: $("#f-sku").value.trim(),
+    brand: $("#f-brand").value.trim(),
+    weight: parseFloat($("#f-weight").value) || 0,
+    categoryId: parseInt($("#f-category-id").value) || 0,
+    dimensions: {
+      length: parseFloat($("#f-dim-length").value) || 0,
+      width: parseFloat($("#f-dim-width").value) || 0,
+      height: parseFloat($("#f-dim-height").value) || 0,
+    },
     updatedAt: new Date().toISOString(),
   };
 
@@ -1129,7 +1155,12 @@ function renderCatalog() {
     card.className = "product-card" + (isHot ? " hot" : "");
     card.dataset.productId = p.id;
     const imgSrc = getProductImage(p);
+    const shopeeStatus = p.shopee_status || "draft";
+    const shopeeBadgeHtml = shopeeStatus !== "draft"
+      ? `<span class="shopee-badge shopee-mini ${shopeeStatus}">${SHOPEE_STATUS_LABELS[shopeeStatus] || shopeeStatus}</span>`
+      : "";
     card.innerHTML = `
+      ${shopeeBadgeHtml}
       ${
         imgSrc
           ? `<img class="product-photo" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'product-photo-empty\\'>📦</div>'">`
@@ -1435,6 +1466,9 @@ function openDetailsModal(product) {
     linkEl.classList.add("hidden");
   }
 
+  // ---- Box Shopee ----
+  renderDetailsShopeeBox(product);
+
   // ---- Galeria de imagens ----
   const gallerySection = $("#dm-gallery-section");
   const galleryEl = $("#dm-gallery");
@@ -1608,6 +1642,119 @@ ${p.link ? `• Link: ${p.link}` : ""}`.trim();
     document.body.removeChild(ta);
     btn.textContent = "✓ Copiado!";
     setTimeout(() => (btn.textContent = original), 1800);
+  }
+});
+
+// ==============================================================
+// INTEGRAÇÃO SHOPEE
+// ==============================================================
+
+/** Mapa de status legíveis para o badge/UI. */
+const SHOPEE_STATUS_LABELS = {
+  draft:     "DRAFT",
+  pending:   "⏳ ENVIANDO",
+  published: "✅ PUBLICADO",
+  error:     "❌ ERRO",
+};
+
+/**
+ * Envia o produto para a Shopee via backend local.
+ * Atualiza o produto no storage com o novo status.
+ * Re-renderiza o catálogo e (se aberto) o modal de detalhes.
+ */
+async function handleSendToShopee(productId) {
+  const product = Storage.get(productId);
+  if (!product) return;
+
+  // Validações mínimas antes de bater no backend
+  if (!product.description || product.description.trim().length < 20) {
+    alert(
+      "⚠️ A Shopee exige descrição com no mínimo 20 caracteres.\n\n" +
+      "Edite o produto e adicione uma descrição mais completa antes de enviar."
+    );
+    return;
+  }
+  if (!getProductImage(product)) {
+    alert("⚠️ O produto precisa ter ao menos uma imagem.");
+    return;
+  }
+
+  // Marca como "pending" e re-renderiza
+  Storage.update(productId, {
+    shopee_status: "pending",
+    shopee_error: null,
+    updatedAt: new Date().toISOString(),
+  });
+  render();
+  if (detailsProductId === productId) {
+    renderDetailsShopeeBox(Storage.get(productId));
+  }
+
+  try {
+    const result = await sendProductToShopee(product);
+    Storage.update(productId, {
+      shopee_status: "published",
+      shopee_item_id: result.item_id,
+      shopee_synced_at: result.synced_at,
+      shopee_mode: result.mode,
+      shopee_error: null,
+      updatedAt: new Date().toISOString(),
+    });
+    const modeTag = result.mode === "mock" ? " (modo simulação)" : "";
+    alert(`✅ Produto enviado para a Shopee${modeTag}!\n\nitem_id: ${result.item_id}`);
+  } catch (err) {
+    console.error("Erro ao enviar para Shopee:", err);
+    Storage.update(productId, {
+      shopee_status: "error",
+      shopee_error: err.message || String(err),
+      updatedAt: new Date().toISOString(),
+    });
+    alert("❌ Erro ao enviar para a Shopee:\n\n" + (err.message || err));
+  }
+
+  render();
+  if (detailsProductId === productId) {
+    renderDetailsShopeeBox(Storage.get(productId));
+  }
+}
+
+/** Renderiza o box de Shopee no modal de detalhes. */
+function renderDetailsShopeeBox(product) {
+  const status = product.shopee_status || "draft";
+  const badge = $("#dm-shopee-status");
+  badge.className = "shopee-badge " + status;
+  badge.textContent = SHOPEE_STATUS_LABELS[status] || status.toUpperCase();
+
+  const meta = $("#dm-shopee-meta");
+  const parts = [];
+  if (product.shopee_item_id) {
+    parts.push(`<div>ID do anúncio: <b>${product.shopee_item_id}</b></div>`);
+  }
+  if (product.shopee_synced_at) {
+    parts.push(`<div>Última sincronização: <b>${formatDateTime(product.shopee_synced_at)}</b></div>`);
+  }
+  if (product.shopee_mode) {
+    const modeLabel = product.shopee_mode === "mock" ? "🧪 Simulação" : "🔴 Shopee real";
+    parts.push(`<div>Modo: <b>${modeLabel}</b></div>`);
+  }
+  if (product.shopee_error) {
+    parts.push(`<div class="shopee-error-msg">${escapeHtml(product.shopee_error)}</div>`);
+  }
+  if (parts.length === 0) {
+    parts.push(`<div style="color:var(--text-dim);font-style:italic">Este produto ainda não foi enviado para a Shopee.</div>`);
+  }
+  meta.innerHTML = parts.join("");
+}
+
+// Handler do botão no modal de detalhes
+$("#dm-send-shopee").addEventListener("click", async () => {
+  if (!detailsProductId) return;
+  if (!confirm("Enviar este produto para a Shopee agora?")) return;
+  $("#dm-send-shopee").disabled = true;
+  try {
+    await handleSendToShopee(detailsProductId);
+  } finally {
+    $("#dm-send-shopee").disabled = false;
   }
 });
 

@@ -320,6 +320,39 @@
           </div>
         </div>
 
+        <!-- ===== Bloco: dados específicos da Shopee (opcional) ===== -->
+        <h4 class="section-title">🛒 Dados para Shopee <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">(opcional, usado na publicação)</small></h4>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>SKU</label>
+            <input type="text" id="f-sku" placeholder="Ex: GM8-CZSTORE" />
+          </div>
+          <div class="form-group">
+            <label>Marca</label>
+            <input type="text" id="f-brand" placeholder="Ex: Kailh" />
+          </div>
+          <div class="form-group">
+            <label>Peso (kg)</label>
+            <input type="number" id="f-weight" step="0.01" min="0" placeholder="0.10" />
+          </div>
+          <div class="form-group">
+            <label>ID Categoria Shopee</label>
+            <input type="number" id="f-category-id" min="0" placeholder="Ex: 100012" />
+          </div>
+          <div class="form-group">
+            <label>Comprimento (cm)</label>
+            <input type="number" id="f-dim-length" step="0.1" min="0" placeholder="10" />
+          </div>
+          <div class="form-group">
+            <label>Largura (cm)</label>
+            <input type="number" id="f-dim-width" step="0.1" min="0" placeholder="10" />
+          </div>
+          <div class="form-group">
+            <label>Altura (cm)</label>
+            <input type="number" id="f-dim-height" step="0.1" min="0" placeholder="5" />
+          </div>
+        </div>
+
         <!-- ===== Bloco: histórico (só ao editar) ===== -->
         <div id="history-section" class="hidden">
           <div class="section-title-row">
@@ -514,6 +547,18 @@
           </div>
         </div>
 
+        <!-- Integração Shopee -->
+        <div class="details-section">
+          <h4>🛒 Integração Shopee</h4>
+          <div class="shopee-box" id="dm-shopee-box">
+            <div class="shopee-status">
+              <span class="label">Status:</span>
+              <span class="shopee-badge" id="dm-shopee-status">DRAFT</span>
+            </div>
+            <div class="shopee-meta" id="dm-shopee-meta"></div>
+          </div>
+        </div>
+
         <!-- Histórico -->
         <div class="details-section">
           <div class="details-section-head">
@@ -527,6 +572,7 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="dm-close2">Fechar</button>
         <button type="button" class="btn btn-danger" id="dm-delete">🗑️ Excluir</button>
+        <button type="button" class="btn btn-shopee" id="dm-send-shopee">🛒 Enviar para Shopee</button>
         <button type="button" class="btn btn-primary" id="dm-edit">✏️ Editar</button>
       </div>
     </div>
@@ -543,6 +589,9 @@
 
   <!-- Storage (camada de persistência) -->
   <script src="js/storage.js"></script>
+
+  <!-- Services (integrações externas) -->
+  <script src="js/services/shopeeService.js"></script>
 
   <!-- Aplicação (UI, modais, renderização, importadores) -->
   <script src="js/app.js"></script>
