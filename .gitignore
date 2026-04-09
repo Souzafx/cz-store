@@ -48,6 +48,11 @@ backend/.env
 # Permite versionar o template
 !backend/.env.example
 
+# ---- Backend runtime (gerado em runtime, nunca versionar) ----
+backend/logs/
+backend/data/
+backend/data/shopee-tokens.json
+
 # ---- Logs ----
 logs/
 *.log

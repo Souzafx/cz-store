@@ -4,7 +4,50 @@ Todas as mudanças importantes deste projeto são documentadas aqui.
 O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 o versionamento segue [SemVer](https://semver.org/lang/pt-BR/).
 
-## [2.1.0] — Versão atual
+## [2.2.0] — Versão atual · Produção segura
+
+### Adicionado
+- 🛡️ **helmet** — headers de segurança (XSS, clickjacking, MIME sniffing)
+- 🚦 **express-rate-limit** — 60 req/min por IP, configurável via env
+- 🔐 **Auth por token** via header `X-CZ-Token` (opcional em dev, obrigatório em prod)
+- 🌐 **CORS restrito** — lista de origens via `ALLOWED_ORIGINS`
+- 🏠 **Bind 127.0.0.1 por padrão** — não aceita conexões externas
+- 🔑 **OAuth Shopee completo** com refresh automático de `access_token`:
+  - `GET  /api/shopee/auth-url` — URL para autorizar a loja
+  - `GET  /api/shopee/oauth-callback` — recebe code e salva tokens
+  - `POST /api/shopee/refresh-token` — refresh manual
+  - Refresh automático 5 min antes de expirar
+- 💾 **tokenStore** — persiste tokens em `data/shopee-tokens.json` com perms 0600
+- 🔁 **Retry com exponential backoff** em falhas transitórias (3 tentativas)
+- 🏷️ **Erros categorizados**: validation / transient / http_error / shopee_logic_error / network
+- 📜 **Logger estruturado** com rotação diária e redação de campos sensíveis
+- 🛑 **Graceful shutdown** (SIGTERM/SIGINT) com timeout de 10s
+- ✅ **Health check expandido** com versão, modo, env, auth_required
+- 🧹 **Sanitização de erros** em produção (nunca vaza stack trace)
+- ⚙️ **Config validada com fail-fast** — processo morre se env está inseguro em prod
+- 🐳 **Dockerfile** multi-stage (~60 MB) com user não-root e healthcheck nativo
+- 🍎 **macOS LaunchAgent** para auto-start + install/uninstall scripts
+- 📘 **PRODUCTION.md** — guia completo de deploy (LaunchAgent, Docker, PM2, Render, Fly.io, Railway)
+
+### Frontend
+- ⚙️ **Modal de configurações** na sidebar — configura URL + token
+- 🟢 **Badge de status do backend** no rodapé da sidebar (MOCK / LIVE / offline)
+- 🔄 **Auto-verificação** a cada 30s
+- 🏷️ **Mensagens de erro categorizadas** com dicas por tipo de falha
+- 🔌 **Teste de conexão** mostra versão, modo e auth status
+
+### Segurança
+- Backend bind default em `127.0.0.1`
+- helmet em todas as respostas
+- Rate limiting previne força-bruta no token
+- Logs redatam `partner_key`, `access_token`, `refresh_token`, `authorization`, `x-cz-token`, `password`, `secret`
+- Erros em prod não vazam stack trace
+- `data/shopee-tokens.json` criado com permissão 0600
+- Config aborta em prod se `BIND_HOST=0.0.0.0` sem `CZ_API_TOKEN`
+
+---
+
+## [2.1.0]
 
 ### Adicionado
 - 🛒 **Integração com Shopee** via backend Node.js/Express dedicado
