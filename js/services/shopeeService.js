@@ -4,30 +4,43 @@
    Encapsula as chamadas HTTP para o backend local que
    conversa com a Shopee Partner API.
 
-   Endpoint padrão: http://localhost:3000/api/shopee
-   Pode ser sobrescrito em runtime via:
-     window.CZ_BACKEND_URL = "http://outra:porta"
+   Config persistida em localStorage:
+     cz_backend_url    → URL do backend (default: http://localhost:3000/api/shopee)
+     cz_api_token      → token X-CZ-Token (opcional, exigido em produção)
    ============================================ */
 
-const SHOPEE_BACKEND_URL =
-  (typeof window !== "undefined" && window.CZ_BACKEND_URL) ||
-  "http://localhost:3000/api/shopee";
+const CZ_BACKEND_DEFAULT = "http://localhost:3000/api/shopee";
+
+function getBackendUrl() {
+  return (
+    (typeof window !== "undefined" && window.CZ_BACKEND_URL) ||
+    localStorage.getItem("cz_backend_url") ||
+    CZ_BACKEND_DEFAULT
+  );
+}
+
+function getApiToken() {
+  return localStorage.getItem("cz_api_token") || "";
+}
+
+function setBackendConfig({ url, token }) {
+  if (url !== undefined) {
+    if (url) localStorage.setItem("cz_backend_url", url);
+    else localStorage.removeItem("cz_backend_url");
+  }
+  if (token !== undefined) {
+    if (token) localStorage.setItem("cz_api_token", token);
+    else localStorage.removeItem("cz_api_token");
+  }
+}
 
 /**
  * Converte um produto do CZ Store no payload que o backend espera.
- *
- * Campos obrigatórios na Shopee:
- * - name, description (≥20 chars), price, stock, imagem
- * - dimensions (default razoável se ausente)
- * - weight (default 0.1kg se ausente)
  */
 function buildShopeePayload(product) {
   const calc = calcProduct(product);
-
-  // Estoque = kits disponíveis (unidade vendável na loja)
   const stock = calc.kits;
 
-  // Galeria: principal + galleryImages, sem duplicatas
   const images = [];
   const main = getProductImage(product);
   if (main) images.push(main);
@@ -52,55 +65,81 @@ function buildShopeePayload(product) {
       height: product.dimensions?.height || 5,
     },
     image: images[0] || "",
-    images: images.slice(1), // as extras
+    images: images.slice(1),
     condition: (product.condition || "NEW").toUpperCase(),
   };
 }
 
+/** Headers incluindo X-CZ-Token quando configurado. */
+function buildHeaders() {
+  const headers = { "Content-Type": "application/json" };
+  const token = getApiToken();
+  if (token) headers["X-CZ-Token"] = token;
+  return headers;
+}
+
 /**
- * Envia um produto do CZ Store para a Shopee via backend.
- * Retorna o resultado com { success, item_id, status, synced_at, ... }.
- * Lança Error se o backend não estiver rodando ou retornar falha.
+ * Envia um produto para a Shopee via backend.
+ * Lança Error com .category para o frontend categorizar:
+ *   "network" | "validation" | "transient" | "http_error" |
+ *   "shopee_logic_error" | "parse_error" | "server_error" | "unknown"
  */
 async function sendProductToShopee(product) {
   const payload = buildShopeePayload(product);
 
   let res;
   try {
-    res = await fetch(`${SHOPEE_BACKEND_URL}/create-product`, {
+    res = await fetch(`${getBackendUrl()}/create-product`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildHeaders(),
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    throw new Error(
-      "Backend offline. Inicie o servidor em backend/ com `npm start`."
+    const e = new Error(
+      "Backend offline. Inicie o servidor ou confira a URL em Configurações."
     );
+    e.category = "network";
+    throw e;
   }
 
   let data;
   try {
     data = await res.json();
   } catch {
-    throw new Error(`Resposta inválida do backend (HTTP ${res.status})`);
+    const e = new Error(`Resposta inválida do backend (HTTP ${res.status})`);
+    e.category = "parse_error";
+    throw e;
   }
 
   if (!res.ok || data.success === false) {
-    throw new Error(data.error || `HTTP ${res.status}`);
+    const e = new Error(data.error || `HTTP ${res.status}`);
+    e.category = data.category || (res.status === 401 ? "unauthorized" : "server_error");
+    e.status = res.status;
+    throw e;
   }
 
   return data;
 }
 
-/**
- * Consulta o status do backend (mock ou live).
- * Retorna null se o backend não estiver rodando.
- */
+/** Consulta o status do backend. Retorna null se offline. */
 async function getShopeeBackendStatus() {
   try {
-    const res = await fetch(`${SHOPEE_BACKEND_URL}/status`, {
+    const res = await fetch(`${getBackendUrl()}/status`, {
       method: "GET",
+      headers: buildHeaders(),
     });
+    if (!res.ok) return { ok: false, status: res.status };
+    return { ok: true, ...(await res.json()) };
+  } catch {
+    return null;
+  }
+}
+
+/** Health check público (sem token). */
+async function getBackendHealth() {
+  try {
+    const baseRoot = getBackendUrl().replace(/\/api\/shopee\/?$/, "");
+    const res = await fetch(`${baseRoot}/health`);
     if (!res.ok) return null;
     return await res.json();
   } catch {

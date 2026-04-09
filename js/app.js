@@ -1709,7 +1709,17 @@ async function handleSendToShopee(productId) {
       shopee_error: err.message || String(err),
       updatedAt: new Date().toISOString(),
     });
-    alert("❌ Erro ao enviar para a Shopee:\n\n" + (err.message || err));
+    const category = err.category || "unknown";
+    const hints = {
+      network: "Verifique se o backend está rodando em background.\nAbra Configurações para testar a conexão.",
+      unauthorized: "Token X-CZ-Token inválido. Atualize em Configurações.",
+      validation: "Verifique os dados do produto (nome, descrição ≥20 chars, imagem).",
+      transient: "Shopee retornou erro temporário. Tente novamente em alguns segundos.",
+      shopee_logic_error: "A Shopee recusou os dados. Confira as credenciais e o formato.",
+      parse_error: "Resposta do backend corrompida. Reinicie o servidor.",
+    };
+    const hint = hints[category] ? "\n\n💡 " + hints[category] : "";
+    alert(`❌ Erro ao enviar para a Shopee:\n\n${err.message || err}${hint}`);
   }
 
   render();
@@ -1757,6 +1767,122 @@ $("#dm-send-shopee").addEventListener("click", async () => {
     $("#dm-send-shopee").disabled = false;
   }
 });
+
+// ==============================================================
+// MODAL DE CONFIGURAÇÕES (backend URL + token)
+// ==============================================================
+const settingsModal = $("#settings-modal");
+
+$("#nav-settings").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("#cfg-backend-url").value = localStorage.getItem("cz_backend_url") || "";
+  $("#cfg-api-token").value = localStorage.getItem("cz_api_token") || "";
+  $("#backend-status-box").innerHTML = "Clique em <b>Testar conexão</b> para verificar o backend.";
+  $("#backend-status-box").className = "backend-status-box";
+  settingsModal.classList.remove("hidden");
+});
+
+$("#settings-close").addEventListener("click", () => {
+  settingsModal.classList.add("hidden");
+});
+
+$("#btn-toggle-token-view").addEventListener("click", () => {
+  const input = $("#cfg-api-token");
+  input.type = input.type === "password" ? "text" : "password";
+});
+
+$("#btn-save-settings").addEventListener("click", () => {
+  setBackendConfig({
+    url: $("#cfg-backend-url").value.trim(),
+    token: $("#cfg-api-token").value.trim(),
+  });
+  settingsModal.classList.add("hidden");
+  updateBackendStatusPill();
+  alert("✅ Configurações salvas!");
+});
+
+$("#btn-test-backend").addEventListener("click", async () => {
+  const box = $("#backend-status-box");
+  box.className = "backend-status-box";
+  box.textContent = "⏳ Testando conexão...";
+
+  // Aplica temporariamente os valores do form para o teste
+  const tempUrl = $("#cfg-backend-url").value.trim();
+  const tempToken = $("#cfg-api-token").value.trim();
+  const prevUrl = localStorage.getItem("cz_backend_url");
+  const prevToken = localStorage.getItem("cz_api_token");
+  setBackendConfig({ url: tempUrl, token: tempToken });
+
+  try {
+    const health = await getBackendHealth();
+    if (!health) {
+      box.className = "backend-status-box error";
+      box.innerHTML = "❌ Backend inacessível.<br>Confira a URL e se o servidor está rodando.";
+      return;
+    }
+    const status = await getShopeeBackendStatus();
+    if (!status || !status.ok) {
+      if (status && status.status === 401) {
+        box.className = "backend-status-box error";
+        box.innerHTML = "❌ Token inválido. Ajuste o valor e tente novamente.";
+        return;
+      }
+      box.className = "backend-status-box error";
+      box.innerHTML = "❌ Endpoint Shopee indisponível.";
+      return;
+    }
+
+    const modeLabel =
+      health.mode === "mock" ? "🧪 MOCK (simulação)" : "🔴 LIVE (Shopee real)";
+    const authLabel = health.auth_required ? "🔐 Sim" : "🔓 Não";
+    box.className = "backend-status-box success";
+    box.innerHTML = `
+      ✅ Backend conectado<br>
+      <b>Versão:</b> ${health.version}<br>
+      <b>Modo:</b> ${modeLabel}<br>
+      <b>Ambiente:</b> ${health.env}<br>
+      <b>Autenticação:</b> ${authLabel}<br>
+      ${status.has_tokens ? `<b>Tokens Shopee:</b> ${status.token_expired ? "expirados" : "válidos"}<br>` : ""}
+    `;
+  } catch (err) {
+    box.className = "backend-status-box error";
+    box.innerHTML = `❌ Erro: ${escapeHtml(err.message)}`;
+  } finally {
+    // Não reverte — se o teste foi explícito, respeita
+    // (o botão Salvar é quem persiste; mas já deixamos aplicado para testar)
+  }
+});
+
+/** Atualiza o badge de status do backend no sidebar. */
+async function updateBackendStatusPill() {
+  const pill = $("#backend-status-pill");
+  if (!pill) return;
+  pill.className = "backend-pill";
+  pill.textContent = "⏳ verificando...";
+  try {
+    const health = await getBackendHealth();
+    if (!health) {
+      pill.className = "backend-pill offline";
+      pill.textContent = "● backend offline";
+      return;
+    }
+    if (health.mode === "mock") {
+      pill.className = "backend-pill online-mock";
+      pill.textContent = "● MOCK";
+    } else {
+      pill.className = "backend-pill online-live";
+      pill.textContent = "● LIVE";
+    }
+  } catch {
+    pill.className = "backend-pill offline";
+    pill.textContent = "● backend offline";
+  }
+}
+
+// Checa backend ao abrir
+updateBackendStatusPill();
+// Revalida a cada 30s
+setInterval(updateBackendStatusPill, 30000);
 
 // ==============================================================
 // IMPORTAÇÃO DE EXCEL (.xlsx)

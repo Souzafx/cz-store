@@ -117,6 +117,40 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+.backend-pill {
+  margin-top: 8px;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+  transition: all 0.2s;
+}
+.backend-pill.online-mock { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border-color: #f59e0b55; }
+.backend-pill.online-live { background: rgba(34, 197, 94, 0.12); color: #22c55e; border-color: #22c55e55; }
+.backend-pill.offline     { background: rgba(239, 68, 68, 0.12); color: var(--danger); border-color: var(--danger); }
+
+.backend-status-box {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+.backend-status-box b { color: #fff; }
+.backend-status-box.error {
+  border-color: var(--danger);
+  background: rgba(239, 68, 68, 0.05);
+}
+.backend-status-box.success {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+}
 
 /* ===================== MAIN ===================== */
 .main { flex: 1; padding: 32px 40px; max-width: 100%; }
