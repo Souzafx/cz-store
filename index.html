@@ -191,6 +191,27 @@
           </small>
         </div>
 
+        <!-- ===== Tipo do produto ===== -->
+        <h4 class="section-title">🏷️ Tipo do produto</h4>
+        <div class="type-selector">
+          <label class="type-option">
+            <input type="radio" name="f-type" value="resale" checked />
+            <div class="type-card">
+              <span class="type-icon">🛒</span>
+              <b>Revenda</b>
+              <small>Produto comprado pronto para revender</small>
+            </div>
+          </label>
+          <label class="type-option">
+            <input type="radio" name="f-type" value="3d_print" />
+            <div class="type-card">
+              <span class="type-icon">🖨️</span>
+              <b>Fabricação 3D</b>
+              <small>Produto impresso por você em PLA/ABS/PETG</small>
+            </div>
+          </label>
+        </div>
+
         <!-- ===== Bloco: dados do produto ===== -->
         <h4 class="section-title">📦 Informações do produto</h4>
         <div class="form-grid">
@@ -289,8 +310,8 @@
           </div>
         </div>
 
-        <!-- ===== Bloco: primeira compra (só ao criar novo) ===== -->
-        <div id="first-purchase-section">
+        <!-- ===== Bloco: primeira compra (só REVENDA ao criar novo) ===== -->
+        <div id="first-purchase-section" class="type-resale-only">
           <h4 class="section-title">🛒 Primeira compra</h4>
           <div class="form-grid">
             <div class="form-group">
@@ -320,6 +341,63 @@
             <div class="form-group full">
               <label>Observação (opcional)</label>
               <input type="text" id="f-fp-note" placeholder="Ex: promoção black friday" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bloco: produção 3D (só FABRICAÇÃO 3D ao criar novo) ===== -->
+        <div id="first-production-section" class="type-3d-only hidden">
+          <h4 class="section-title">🖨️ Primeira produção</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Data da produção *</label>
+              <input type="date" id="f-fprod-date" />
+            </div>
+            <div class="form-group">
+              <label>Quantidade produzida *</label>
+              <input type="number" id="f-fprod-qty" min="1" value="1" />
+            </div>
+
+            <div class="form-group">
+              <label>Peso por peça (g) *</label>
+              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 65" />
+            </div>
+            <div class="form-group">
+              <label>Custo do filamento (R$/kg) *</label>
+              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 140.00" />
+            </div>
+
+            <div class="form-group">
+              <label>Tempo — horas</label>
+              <input type="number" id="f-fprod-hours" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label>Tempo — minutos</label>
+              <input type="number" id="f-fprod-minutes" min="0" max="59" value="0" />
+            </div>
+
+            <div class="form-group">
+              <label>Consumo de energia (kWh)</label>
+              <input type="number" id="f-fprod-energy-kwh" step="0.01" min="0" placeholder="Opcional" />
+            </div>
+            <div class="form-group">
+              <label>Tarifa de energia (R$/kWh)</label>
+              <input type="number" id="f-fprod-energy-price" step="0.01" min="0" placeholder="Opcional" />
+            </div>
+
+            <div class="form-group full">
+              <label>
+                Custos extras (R$)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — embalagem, cola, imã, parafuso, mão de obra, acabamento
+                </small>
+              </label>
+              <input type="number" id="f-fprod-extras" step="0.01" min="0" placeholder="Ex: 2.50" />
+            </div>
+
+            <div class="form-group full">
+              <label>Observação (opcional)</label>
+              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, primeira tiragem" />
             </div>
           </div>
         </div>
@@ -357,8 +435,8 @@
           </div>
         </div>
 
-        <!-- ===== Bloco: histórico (só ao editar) ===== -->
-        <div id="history-section" class="hidden">
+        <!-- ===== Bloco: histórico de compras (REVENDA, só ao editar) ===== -->
+        <div id="history-section" class="type-resale-only hidden">
           <div class="section-title-row">
             <h4 class="section-title">📜 Histórico de compras</h4>
             <button type="button" class="btn btn-primary btn-sm" id="btn-add-purchase">
@@ -366,6 +444,17 @@
             </button>
           </div>
           <div id="product-purchases-list" class="purchases-list"></div>
+        </div>
+
+        <!-- ===== Bloco: histórico de produção (3D, só ao editar) ===== -->
+        <div id="production-history-section" class="type-3d-only hidden">
+          <div class="section-title-row">
+            <h4 class="section-title">🖨️ Histórico de produção</h4>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-add-production">
+              + Nova produção
+            </button>
+          </div>
+          <div id="product-production-list" class="purchases-list"></div>
         </div>
 
         <!-- ===== Live calc ===== -->
@@ -472,6 +561,79 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="btn-p-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar compra</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: NOVA/EDITAR PRODUÇÃO 3D ============ -->
+  <div class="modal hidden" id="production-modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3 id="production-modal-title">Nova Produção</h3>
+        <button class="icon-btn" id="production-modal-close" type="button">✕</button>
+      </div>
+
+      <form id="production-form">
+        <input type="hidden" id="production-id" />
+        <input type="hidden" id="production-product-id" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Data da produção *</label>
+            <input type="date" id="f-pr-date" required />
+          </div>
+          <div class="form-group">
+            <label>Quantidade produzida *</label>
+            <input type="number" id="f-pr-qty" min="1" required />
+          </div>
+
+          <div class="form-group">
+            <label>Peso por peça (g) *</label>
+            <input type="number" id="f-pr-weight" step="0.1" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Custo do filamento (R$/kg) *</label>
+            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required />
+          </div>
+
+          <div class="form-group">
+            <label>Tempo — horas</label>
+            <input type="number" id="f-pr-hours" min="0" value="0" />
+          </div>
+          <div class="form-group">
+            <label>Tempo — minutos</label>
+            <input type="number" id="f-pr-minutes" min="0" max="59" value="0" />
+          </div>
+
+          <div class="form-group">
+            <label>Consumo (kWh)</label>
+            <input type="number" id="f-pr-energy-kwh" step="0.01" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Tarifa (R$/kWh)</label>
+            <input type="number" id="f-pr-energy-price" step="0.01" min="0" />
+          </div>
+
+          <div class="form-group full">
+            <label>Custos extras (R$)</label>
+            <input type="number" id="f-pr-extras" step="0.01" min="0" />
+          </div>
+
+          <div class="form-group full">
+            <label>Observação</label>
+            <input type="text" id="f-pr-note" placeholder="Ex: PLA laranja, lote noturno" />
+          </div>
+        </div>
+
+        <div class="calc-box-mini" id="production-live-calc">
+          <div><span>Custo por unidade</span><b id="pr-unit">R$ 0,00</b></div>
+          <div><span>Custo total do lote</span><b id="pr-total">R$ 0,00</b></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-pr-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar produção</button>
         </div>
       </form>
     </div>

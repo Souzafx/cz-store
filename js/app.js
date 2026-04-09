@@ -1,13 +1,25 @@
 /* ============================================
    app.js — Lógica principal da aplicação
 
-   MODELO DE DADOS (v8):
+   MODELO DE DADOS (v9):
    ---------------------
    product = {
-     id, name, description, unitsPerKit, price, fee, link,
-     photo, imageUrl, galleryImages,
-     createdAt, updatedAt,
+     id, name, description, link, photo, imageUrl, galleryImages,
+     price, fee, createdAt, updatedAt,
+
+     // ----- Tipo do produto -----
+     type: "resale" | "3d_print",
+
+     // ----- REVENDA -----
+     unitsPerKit,
      purchases: [ { id, date, qty, costProduct, costTax, note, origin } ],
+
+     // ----- FABRICAÇÃO 3D -----
+     productionHistory: [
+       { id, createdAt, date, quantity, weightGrams, filamentCostPerKg,
+         printHours, printMinutes, energyKwh, energyCostPerKwh,
+         extraCosts, note }
+     ],
 
      // ----- Dados Shopee (opcional) -----
      sku, brand, weight, categoryId,
@@ -44,7 +56,12 @@ const $$ = (sel) => document.querySelectorAll(sel);
  * Converte produtos das versões antigas (v1, v2, v3) para v4 (purchases[]).
  */
 function migrate(p) {
-  if (Array.isArray(p.purchases)) return p; // já é v4
+  if (Array.isArray(p.purchases)) {
+    // Já tem purchases, só garante campos novos
+    if (!p.type) p.type = "resale";
+    if (!Array.isArray(p.productionHistory)) p.productionHistory = [];
+    return p;
+  }
 
   // Determina os valores agregados com base na versão antiga
   let costProduct = 0;
@@ -84,7 +101,12 @@ function migrate(p) {
     ...rest
   } = p;
 
-  return { ...rest, purchases: [purchase] };
+  return {
+    ...rest,
+    type: "resale",
+    purchases: [purchase],
+    productionHistory: [],
+  };
 }
 
 /** Migração em massa na inicialização. */
@@ -96,13 +118,19 @@ function migrate(p) {
       changed = true;
       p = migrate(p);
     }
-    // Garante que toda purchase tenha createdAt (necessário para ordenar por hora)
+    // v4 → v9: campos de tipo
+    if (!p.type) {
+      changed = true;
+      p.type = "resale"; // tudo que existia era revenda
+    }
+    if (!Array.isArray(p.productionHistory)) {
+      p.productionHistory = [];
+    }
+    // Garante createdAt em cada purchase
     if (Array.isArray(p.purchases)) {
       p.purchases = p.purchases.map((pu, idx) => {
         if (!pu.createdAt) {
           changed = true;
-          // Usa a data informada + horas fictícias incrementais para
-          // preservar a ordem relativa que já existia.
           const pad = (n) => String(n).padStart(2, "0");
           const h = pad(Math.min(23, idx));
           return { ...pu, createdAt: `${pu.date || "2024-01-01"}T${h}:00:00.000Z` };
@@ -159,6 +187,12 @@ function openModal(product = null) {
   editingId = product ? product.id : null;
   photoDataUrl = product ? product.photo || null : null;
   imageUrlValue = product ? (product.imageUrl || "") : "";
+
+  // Tipo do produto — default "resale" em novo cadastro
+  const productType = product?.type || "resale";
+  const typeRadio = document.querySelector(`input[name="f-type"][value="${productType}"]`);
+  if (typeRadio) typeRadio.checked = true;
+  applyTypeVisibility(productType);
   galleryImagesValue = product && Array.isArray(product.galleryImages)
     ? [...product.galleryImages]
     : [];
@@ -199,35 +233,74 @@ function openModal(product = null) {
   updateImagePreview();
   renderCandidateImages();
 
-  // Campos da "primeira compra" — precisam ficar desabilitados no modo
-  // edição, senão o navegador bloqueia o submit por causa do `required`
-  // em inputs que estão escondidos.
+  // Campos de "primeira compra" e "primeira produção" — ficam DISABLED em
+  // modo edição para não bloquear o submit pelo required (estão escondidos).
   const firstPurchaseFields = [
     "f-fp-date", "f-fp-qty", "f-fp-cost-product",
     "f-fp-cost-tax", "f-fp-origin", "f-fp-note",
   ];
+  const firstProductionFields = [
+    "f-fprod-date", "f-fprod-qty", "f-fprod-weight", "f-fprod-filament-cost",
+    "f-fprod-hours", "f-fprod-minutes", "f-fprod-energy-kwh",
+    "f-fprod-energy-price", "f-fprod-extras", "f-fprod-note",
+  ];
+  const setDisabled = (ids, flag) => {
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = flag;
+    });
+  };
 
   if (product) {
-    // Modo edição: esconde primeira compra, mostra histórico
+    // --- MODO EDIÇÃO ---
     $("#first-purchase-section").classList.add("hidden");
-    $("#history-section").classList.remove("hidden");
-    firstPurchaseFields.forEach((id) => {
-      document.getElementById(id).disabled = true;
-    });
-    renderProductPurchasesList(product);
+    $("#first-production-section").classList.add("hidden");
+    setDisabled(firstPurchaseFields, true);
+    setDisabled(firstProductionFields, true);
+
+    if (productType === "resale") {
+      $("#history-section").classList.remove("hidden");
+      $("#production-history-section").classList.add("hidden");
+      renderProductPurchasesList(product);
+    } else {
+      $("#history-section").classList.add("hidden");
+      $("#production-history-section").classList.remove("hidden");
+      renderProductProductionList(product);
+    }
   } else {
-    // Modo criação: mostra primeira compra, esconde histórico
-    $("#first-purchase-section").classList.remove("hidden");
+    // --- MODO CRIAÇÃO ---
     $("#history-section").classList.add("hidden");
-    firstPurchaseFields.forEach((id) => {
-      document.getElementById(id).disabled = false;
-    });
-    $("#f-fp-date").value = todayISO();
-    $("#f-fp-qty").value = 1;
-    $("#f-fp-cost-product").value = "";
-    $("#f-fp-cost-tax").value = "";
-    $("#f-fp-origin").value = "nacional";
-    $("#f-fp-note").value = "";
+    $("#production-history-section").classList.add("hidden");
+
+    if (productType === "resale") {
+      $("#first-purchase-section").classList.remove("hidden");
+      $("#first-production-section").classList.add("hidden");
+      setDisabled(firstPurchaseFields, false);
+      setDisabled(firstProductionFields, true);
+      // Defaults revenda
+      $("#f-fp-date").value = todayISO();
+      $("#f-fp-qty").value = 1;
+      $("#f-fp-cost-product").value = "";
+      $("#f-fp-cost-tax").value = "";
+      $("#f-fp-origin").value = "nacional";
+      $("#f-fp-note").value = "";
+    } else {
+      $("#first-purchase-section").classList.add("hidden");
+      $("#first-production-section").classList.remove("hidden");
+      setDisabled(firstPurchaseFields, true);
+      setDisabled(firstProductionFields, false);
+      // Defaults 3D
+      $("#f-fprod-date").value = todayISO();
+      $("#f-fprod-qty").value = 1;
+      $("#f-fprod-weight").value = "";
+      $("#f-fprod-filament-cost").value = "";
+      $("#f-fprod-hours").value = 0;
+      $("#f-fprod-minutes").value = 0;
+      $("#f-fprod-energy-kwh").value = "";
+      $("#f-fprod-energy-price").value = "";
+      $("#f-fprod-extras").value = "";
+      $("#f-fprod-note").value = "";
+    }
   }
 
   updateLiveCalc();
@@ -243,6 +316,44 @@ function closeModal() {
 $("#btn-new").addEventListener("click", () => openModal());
 $("#modal-close").addEventListener("click", closeModal);
 $("#btn-cancel").addEventListener("click", closeModal);
+
+// Handler: troca de tipo no seletor (revenda <-> fabricação 3D)
+// Só efetivo quando criando novo produto — em edição o tipo é fixo.
+document.querySelectorAll('input[name="f-type"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    if (editingId) return; // não permite trocar tipo de produto existente
+    applyTypeVisibility(radio.value);
+    // Re-dispara openModal(null) com defaults, preservando só nome/desc já digitados
+    const preserved = {
+      name: $("#f-name").value,
+      description: $("#f-description").value,
+      link: $("#f-link").value,
+    };
+    openModal(null);
+    $("#f-name").value = preserved.name;
+    $("#f-description").value = preserved.description;
+    $("#f-link").value = preserved.link;
+    // Re-marca o radio (porque openModal reseta)
+    const r = document.querySelector(`input[name="f-type"][value="${radio.value}"]`);
+    if (r) r.checked = true;
+    applyTypeVisibility(radio.value);
+  });
+});
+
+/**
+ * Alterna quais seções do formulário ficam visíveis conforme o tipo.
+ * Seções marcadas com .type-resale-only ou .type-3d-only são
+ * mostradas/ocultadas de acordo com o tipo atual.
+ */
+function applyTypeVisibility(type) {
+  const isResale = type === "resale";
+  document.querySelectorAll(".type-resale-only").forEach((el) => {
+    el.style.display = isResale ? "" : "none";
+  });
+  document.querySelectorAll(".type-3d-only").forEach((el) => {
+    el.style.display = isResale ? "none" : "";
+  });
+}
 // >>> clique fora do modal NÃO fecha mais (removido propositalmente) <<<
 
 // ---------- Upload de foto (arquivo local) ----------
@@ -771,28 +882,64 @@ function testImageUrlLive(explicit = false) {
 // campos da primeira compra; no modo edição, os valores vêm do storage.
 const LIVE_CALC_FIELDS = [
   "f-units-per-kit", "f-price", "f-fee", "f-target-profit",
+  // resale
   "f-fp-qty", "f-fp-cost-product", "f-fp-cost-tax",
+  // 3d print
+  "f-fprod-qty", "f-fprod-weight", "f-fprod-filament-cost",
+  "f-fprod-hours", "f-fprod-minutes",
+  "f-fprod-energy-kwh", "f-fprod-energy-price", "f-fprod-extras",
 ];
 LIVE_CALC_FIELDS.forEach((id) => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("input", updateLiveCalc);
 });
 
+/** Retorna o tipo atualmente selecionado no formulário. */
+function getSelectedType() {
+  const checked = document.querySelector('input[name="f-type"]:checked');
+  return checked?.value || "resale";
+}
+
 /** Monta um objeto product "virtual" para alimentar calcProduct ao vivo. */
 function buildFormProduct() {
+  const type = getSelectedType();
   const base = {
+    type,
     unitsPerKit: $("#f-units-per-kit").value,
     price: $("#f-price").value,
     fee: $("#f-fee").value,
   };
 
   if (editingId) {
-    // No modo edição, os custos vêm das compras já salvas
     const p = Storage.get(editingId);
-    return { ...base, purchases: p?.purchases || [] };
+    return {
+      ...base,
+      type: p?.type || type,
+      purchases: p?.purchases || [],
+      productionHistory: p?.productionHistory || [],
+    };
   }
 
-  // Modo criação: a primeira compra está sendo preenchida no formulário
+  // Modo criação — monta o primeiro histórico em memória
+  if (type === "3d_print") {
+    return {
+      ...base,
+      productionHistory: [
+        {
+          quantity: $("#f-fprod-qty").value,
+          weightGrams: $("#f-fprod-weight").value,
+          filamentCostPerKg: $("#f-fprod-filament-cost").value,
+          printHours: $("#f-fprod-hours").value,
+          printMinutes: $("#f-fprod-minutes").value,
+          energyKwh: $("#f-fprod-energy-kwh").value,
+          energyCostPerKwh: $("#f-fprod-energy-price").value,
+          extraCosts: $("#f-fprod-extras").value,
+        },
+      ],
+      purchases: [],
+    };
+  }
+
   return {
     ...base,
     purchases: [
@@ -802,6 +949,7 @@ function buildFormProduct() {
         costTax: $("#f-fp-cost-tax").value,
       },
     ],
+    productionHistory: [],
   };
 }
 
@@ -943,7 +1091,10 @@ $("#btn-add-purchase").addEventListener("click", () => {
 $("#product-form").addEventListener("submit", (e) => {
   e.preventDefault();
 
+  const productType = getSelectedType();
+
   const productData = {
+    type: productType,
     name: $("#f-name").value.trim(),
     description: $("#f-description").value.trim(),
     unitsPerKit: Math.max(1, parseInt($("#f-units-per-kit").value) || 1),
@@ -953,7 +1104,6 @@ $("#product-form").addEventListener("submit", (e) => {
     photo: photoDataUrl,
     imageUrl: imageUrlValue || "",
     galleryImages: [...galleryImagesValue],
-    // Dados para Shopee
     sku: $("#f-sku").value.trim(),
     brand: $("#f-brand").value.trim(),
     weight: parseFloat($("#f-weight").value) || 0,
@@ -967,19 +1117,50 @@ $("#product-form").addEventListener("submit", (e) => {
   };
 
   if (editingId) {
+    // Edição: não toca em purchases/productionHistory (são editados via modais)
+    // e não permite mudar o tipo (já definido na criação)
+    const existing = Storage.get(editingId);
+    delete productData.type;
     Storage.update(editingId, productData);
   } else {
-    const firstPurchase = {
-      id: genId(),
-      createdAt: new Date().toISOString(),
-      date: $("#f-fp-date").value || todayISO(),
-      qty: Math.max(1, parseInt($("#f-fp-qty").value) || 1),
-      costProduct: parseFloat($("#f-fp-cost-product").value) || 0,
-      costTax: parseFloat($("#f-fp-cost-tax").value) || 0,
-      origin: $("#f-fp-origin").value || "nacional",
-      note: $("#f-fp-note").value.trim(),
-    };
-    Storage.add({ ...productData, purchases: [firstPurchase] });
+    // Criação: monta o primeiro histórico conforme o tipo
+    if (productType === "3d_print") {
+      const firstBatch = {
+        id: genId(),
+        createdAt: new Date().toISOString(),
+        date: $("#f-fprod-date").value || todayISO(),
+        quantity: Math.max(1, parseInt($("#f-fprod-qty").value) || 1),
+        weightGrams: parseFloat($("#f-fprod-weight").value) || 0,
+        filamentCostPerKg: parseFloat($("#f-fprod-filament-cost").value) || 0,
+        printHours: parseInt($("#f-fprod-hours").value) || 0,
+        printMinutes: parseInt($("#f-fprod-minutes").value) || 0,
+        energyKwh: parseFloat($("#f-fprod-energy-kwh").value) || 0,
+        energyCostPerKwh: parseFloat($("#f-fprod-energy-price").value) || 0,
+        extraCosts: parseFloat($("#f-fprod-extras").value) || 0,
+        note: $("#f-fprod-note").value.trim(),
+      };
+      Storage.add({
+        ...productData,
+        purchases: [],
+        productionHistory: [firstBatch],
+      });
+    } else {
+      const firstPurchase = {
+        id: genId(),
+        createdAt: new Date().toISOString(),
+        date: $("#f-fp-date").value || todayISO(),
+        qty: Math.max(1, parseInt($("#f-fp-qty").value) || 1),
+        costProduct: parseFloat($("#f-fp-cost-product").value) || 0,
+        costTax: parseFloat($("#f-fp-cost-tax").value) || 0,
+        origin: $("#f-fp-origin").value || "nacional",
+        note: $("#f-fp-note").value.trim(),
+      };
+      Storage.add({
+        ...productData,
+        purchases: [firstPurchase],
+        productionHistory: [],
+      });
+    }
   }
 
   closeModal();
@@ -1082,6 +1263,182 @@ $("#purchase-form").addEventListener("submit", (e) => {
 });
 
 // ==============================================================
+// MODAL PRODUÇÃO 3D (nova/editar batch de produção)
+// ==============================================================
+const productionModal = $("#production-modal");
+let editingProductionId = null;
+let editingProductionProductId = null;
+
+/** Renderiza a lista de produções dentro do modal de edição do produto. */
+function renderProductProductionList(product) {
+  const container = $("#product-production-list");
+  container.innerHTML = "";
+
+  const history = [...(product.productionHistory || [])].sort(
+    (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+  );
+
+  if (history.length === 0) {
+    container.innerHTML = `<p class="purchase-empty">Nenhuma produção registrada.</p>`;
+    return;
+  }
+
+  history.forEach((batch, idx) => {
+    const c = calcProductionBatch(batch);
+    const item = document.createElement("div");
+    item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+    item.innerHTML = `
+      <div class="pi-date">
+        ${formatDate(batch.date)}
+        ${batch.createdAt ? `<div class="pi-time">${formatDateTime(batch.createdAt).slice(-5)}</div>` : ""}
+        ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+      </div>
+      <div class="pi-info">
+        <span class="pi-main">${c.quantity} un • ${c.weightGrams}g cada • ${formatPrintTime(c.totalMinutes)}</span>
+        <span class="pi-sub">
+          Custo/un ${BRL(c.costUnit)}
+          ${batch.note ? ` • ${escapeHtml(batch.note)}` : ""}
+        </span>
+      </div>
+      <div>
+        <span class="pi-origin nacional">🖨️ 3D</span>
+        <div class="pi-total">${BRL(c.costTotal)}</div>
+      </div>
+      <div class="pi-actions">
+        <button type="button" data-edit-production="${batch.id}" title="Editar">✏️</button>
+        <button type="button" data-del-production="${batch.id}" title="Excluir">🗑️</button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+
+  container.querySelectorAll("[data-edit-production]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const batch = product.productionHistory.find(
+        (x) => x.id === btn.dataset.editProduction
+      );
+      if (batch) openProductionModal(product.id, batch);
+    });
+  });
+
+  container.querySelectorAll("[data-del-production]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (product.productionHistory.length <= 1) {
+        alert("O produto precisa ter ao menos uma produção. Exclua o produto em vez disso.");
+        return;
+      }
+      if (!confirm("Excluir este batch de produção?")) return;
+      const updated = product.productionHistory.filter((x) => x.id !== btn.dataset.delProduction);
+      Storage.update(product.id, { productionHistory: updated });
+      renderProductProductionList(Storage.get(product.id));
+      updateLiveCalc();
+      render();
+    });
+  });
+}
+
+$("#btn-add-production").addEventListener("click", () => {
+  if (!editingId) return;
+  openProductionModal(editingId, null);
+});
+
+function openProductionModal(productId, batch = null) {
+  editingProductionProductId = productId;
+  editingProductionId = batch ? batch.id : null;
+
+  $("#production-modal-title").textContent = batch ? "Editar Produção" : "Nova Produção";
+  $("#production-id").value = batch?.id || "";
+  $("#production-product-id").value = productId;
+  $("#f-pr-date").value = batch?.date || todayISO();
+  $("#f-pr-qty").value = batch?.quantity || 1;
+  $("#f-pr-weight").value = batch?.weightGrams ?? "";
+  $("#f-pr-filament-cost").value = batch?.filamentCostPerKg ?? "";
+  $("#f-pr-hours").value = batch?.printHours ?? 0;
+  $("#f-pr-minutes").value = batch?.printMinutes ?? 0;
+  $("#f-pr-energy-kwh").value = batch?.energyKwh ?? "";
+  $("#f-pr-energy-price").value = batch?.energyCostPerKwh ?? "";
+  $("#f-pr-extras").value = batch?.extraCosts ?? "";
+  $("#f-pr-note").value = batch?.note || "";
+
+  updateProductionLiveCalc();
+  productionModal.classList.remove("hidden");
+}
+
+function closeProductionModal() {
+  productionModal.classList.add("hidden");
+  editingProductionId = null;
+  editingProductionProductId = null;
+}
+
+$("#production-modal-close").addEventListener("click", closeProductionModal);
+$("#btn-pr-cancel").addEventListener("click", closeProductionModal);
+
+["f-pr-qty", "f-pr-weight", "f-pr-filament-cost", "f-pr-energy-kwh",
+ "f-pr-energy-price", "f-pr-extras"].forEach((id) => {
+  document.getElementById(id).addEventListener("input", updateProductionLiveCalc);
+});
+
+function updateProductionLiveCalc() {
+  const c = calcProductionBatch({
+    quantity: $("#f-pr-qty").value,
+    weightGrams: $("#f-pr-weight").value,
+    filamentCostPerKg: $("#f-pr-filament-cost").value,
+    energyKwh: $("#f-pr-energy-kwh").value,
+    energyCostPerKwh: $("#f-pr-energy-price").value,
+    extraCosts: $("#f-pr-extras").value,
+  });
+  $("#pr-unit").textContent = BRL(c.costUnit);
+  $("#pr-total").textContent = BRL(c.costTotal);
+}
+
+$("#production-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const productId = editingProductionProductId;
+  if (!productId) return;
+  const product = Storage.get(productId);
+  if (!product) return;
+
+  let originalCreatedAt = null;
+  if (editingProductionId) {
+    const existing = product.productionHistory.find((x) => x.id === editingProductionId);
+    originalCreatedAt = existing?.createdAt || null;
+  }
+
+  const batch = {
+    id: editingProductionId || genId(),
+    createdAt: originalCreatedAt || new Date().toISOString(),
+    date: $("#f-pr-date").value || todayISO(),
+    quantity: Math.max(1, parseInt($("#f-pr-qty").value) || 1),
+    weightGrams: parseFloat($("#f-pr-weight").value) || 0,
+    filamentCostPerKg: parseFloat($("#f-pr-filament-cost").value) || 0,
+    printHours: parseInt($("#f-pr-hours").value) || 0,
+    printMinutes: parseInt($("#f-pr-minutes").value) || 0,
+    energyKwh: parseFloat($("#f-pr-energy-kwh").value) || 0,
+    energyCostPerKwh: parseFloat($("#f-pr-energy-price").value) || 0,
+    extraCosts: parseFloat($("#f-pr-extras").value) || 0,
+    note: $("#f-pr-note").value.trim(),
+  };
+
+  let newHistory;
+  if (editingProductionId) {
+    newHistory = product.productionHistory.map((x) =>
+      x.id === editingProductionId ? batch : x
+    );
+  } else {
+    newHistory = [...(product.productionHistory || []), batch];
+  }
+
+  Storage.update(productId, { productionHistory: newHistory });
+  closeProductionModal();
+
+  if (editingId === productId) {
+    renderProductProductionList(Storage.get(productId));
+    updateLiveCalc();
+  }
+  render();
+});
+
+// ==============================================================
 // FILTROS / BUSCA / ORDENAÇÃO
 // ==============================================================
 $("#search").addEventListener("input", render);
@@ -1159,16 +1516,34 @@ function renderCatalog() {
     const shopeeBadgeHtml = shopeeStatus !== "draft"
       ? `<span class="shopee-badge shopee-mini ${shopeeStatus}">${SHOPEE_STATUS_LABELS[shopeeStatus] || shopeeStatus}</span>`
       : "";
-    card.innerHTML = `
-      ${shopeeBadgeHtml}
-      ${
-        imgSrc
-          ? `<img class="product-photo" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'product-photo-empty\\'>📦</div>'">`
-          : `<div class="product-photo-empty">📦</div>`
-      }
-      <div class="product-body">
-        <h4 class="product-name">${escapeHtml(p.name)}</h4>
 
+    // Badge de tipo
+    const is3D = p.type === "3d_print";
+    const typeBadgeHtml = is3D
+      ? `<span class="type-badge print3d">🖨️ 3D</span>`
+      : `<span class="type-badge resale">🛒 Revenda</span>`;
+
+    // Specs diferenciadas por tipo
+    let specsHtml;
+    if (is3D) {
+      specsHtml = `
+        <div class="product-specs">
+          <div class="spec"><span>Invest. total</span><b>${BRL(c.totalInvested)}</b></div>
+          <div class="spec"><span>Filamento</span><b>${BRL(c.totalFilamentCost || 0)}</b></div>
+          <div class="spec"><span>Energia</span><b>${BRL(c.totalEnergyCost || 0)}</b></div>
+          <div class="spec"><span>Extras</span><b>${BRL(c.totalExtras || 0)}</b></div>
+          <div class="spec"><span>Custo/un</span><b>${BRL(c.costUnit)}</b></div>
+          <div class="spec"><span>Peso médio</span><b>${(c.avgWeightPerUnit || 0).toFixed(1)}g</b></div>
+          <div class="spec"><span>Tempo total</span><b>${formatPrintTime(c.totalMinutes || 0)}</b></div>
+          <div class="spec"><span>Produzidas</span><b>${c.qtyBought} un</b></div>
+          <div class="spec"><span>Preço venda</span><b>${BRL(p.price)}</b></div>
+          <div class="spec"><span>Taxa</span><b>${PCT(p.fee)}</b></div>
+          <div class="spec"><span>Lucro/un</span><b>${BRL(c.profitPerKit)}</b></div>
+          <div class="spec"><span>Produções</span><b>${c.batchCount || 0}</b></div>
+        </div>
+      `;
+    } else {
+      specsHtml = `
         <div class="product-specs">
           <div class="spec"><span>Invest. total</span><b>${BRL(c.totalInvested)}</b></div>
           <div class="spec"><span>${c.costTax > 0 ? `Imposto (${PCT(c.taxPct)})` : "Imposto"}</span><b>${BRL(c.costTax)}</b></div>
@@ -1181,6 +1556,21 @@ function renderCatalog() {
           <div class="spec"><span>Compras</span><b>${c.purchasesCount}</b></div>
           <div class="spec"><span>Lucro/kit</span><b>${BRL(c.profitPerKit)}</b></div>
         </div>
+      `;
+    }
+
+    card.innerHTML = `
+      ${shopeeBadgeHtml}
+      ${typeBadgeHtml}
+      ${
+        imgSrc
+          ? `<img class="product-photo" src="${escapeHtml(imgSrc)}" alt="${escapeHtml(p.name)}" onerror="this.outerHTML='<div class=\\'product-photo-empty\\'>📦</div>'">`
+          : `<div class="product-photo-empty">📦</div>`
+      }
+      <div class="product-body">
+        <h4 class="product-name">${escapeHtml(p.name)}</h4>
+
+        ${specsHtml}
 
         <div class="product-profit-block">
           <span class="label">Lucro Total</span>
@@ -1447,7 +1837,13 @@ function openDetailsModal(product) {
     b.textContent = text;
     badges.appendChild(b);
   };
-  addBadge(`badge-${origin}`, origin);
+  // Badge de tipo
+  if (product.type === "3d_print") {
+    addBadge("badge-type-3d", "🖨️ Fabricação 3D");
+  } else {
+    addBadge("badge-type-resale", "🛒 Revenda");
+    addBadge(`badge-${origin}`, origin);
+  }
   if (c.totalProfit > 0) addBadge("badge-hot", `🔥 ${PCT(c.profitOnCost)} lucro`);
   if (isLoss) addBadge("badge-loss", "⚠️ Prejuízo");
 
@@ -1528,54 +1924,107 @@ function openDetailsModal(product) {
   profitEl.classList.toggle("loss", isLoss);
 
   // ---- Estoque ----
-  $("#dm-qty").textContent = `${c.qtyBought} un`;
-  $("#dm-units-per-kit").textContent = product.unitsPerKit || 1;
-  $("#dm-kits").textContent = c.kits;
-  $("#dm-leftover").textContent = c.leftover;
+  if (product.type === "3d_print") {
+    $("#dm-qty").textContent = `${c.qtyBought} un`;
+    $("#dm-units-per-kit").textContent = "1 (unitário)";
+    $("#dm-kits").textContent = c.kits + " prontas";
+    $("#dm-leftover").textContent = `${formatPrintTime(c.totalMinutes || 0)} total`;
+  } else {
+    $("#dm-qty").textContent = `${c.qtyBought} un`;
+    $("#dm-units-per-kit").textContent = product.unitsPerKit || 1;
+    $("#dm-kits").textContent = c.kits;
+    $("#dm-leftover").textContent = c.leftover;
+  }
 
-  // ---- Histórico ----
+  // ---- Histórico (compras OU produção conforme o tipo) ----
   const history = $("#dm-history");
   history.innerHTML = "";
-  const purchases = [...(product.purchases || [])].sort(
-    (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
-  );
-  if (purchases.length === 0) {
-    history.innerHTML = `<p class="purchase-empty">Nenhuma compra registrada.</p>`;
-    $("#dm-last-purchase-info").textContent = "";
-  } else {
-    const last = purchases[0];
-    const { total: lastTotal } = calcPurchase(last);
-    const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
-    $("#dm-last-purchase-info").textContent =
-      `Última compra: ${formatDate(last.date)}${lastReg} • ${BRL(lastTotal)}`;
+  const historyTitleEl = history.closest(".details-section").querySelector("h4");
 
-    purchases.forEach((pu, idx) => {
-      const { total, unitCost } = calcPurchase(pu);
-      const item = document.createElement("div");
-      item.className = "purchase-item" + (idx === 0 ? " latest" : "");
-      item.innerHTML = `
-        <div class="pi-date">
-          ${formatDate(pu.date)}
-          ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
-          ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
-        </div>
-        <div class="pi-info">
-          <span class="pi-main">${pu.qty} un • ${BRL(pu.costProduct)} produto${
-            pu.costTax > 0 ? ` + ${BRL(pu.costTax)} imposto` : ""
-          }</span>
-          <span class="pi-sub">
-            Custo/un ${BRL(unitCost)}
-            ${pu.note ? ` • ${escapeHtml(pu.note)}` : ""}
-          </span>
-        </div>
-        <div>
-          <span class="pi-origin ${pu.origin || "nacional"}">${pu.origin || "nacional"}</span>
-          <div class="pi-total">${BRL(total)}</div>
-        </div>
-        <div></div>
-      `;
-      history.appendChild(item);
-    });
+  if (product.type === "3d_print") {
+    historyTitleEl.textContent = "🖨️ Histórico de produção";
+    const batches = [...(product.productionHistory || [])].sort(
+      (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+    );
+    if (batches.length === 0) {
+      history.innerHTML = `<p class="purchase-empty">Nenhuma produção registrada.</p>`;
+      $("#dm-last-purchase-info").textContent = "";
+    } else {
+      const last = batches[0];
+      const lastCalc = calcProductionBatch(last);
+      const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
+      $("#dm-last-purchase-info").textContent =
+        `Última produção: ${formatDate(last.date)}${lastReg} • ${BRL(lastCalc.costTotal)}`;
+
+      batches.forEach((batch, idx) => {
+        const cb = calcProductionBatch(batch);
+        const item = document.createElement("div");
+        item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+        item.innerHTML = `
+          <div class="pi-date">
+            ${formatDate(batch.date)}
+            ${batch.createdAt ? `<div class="pi-time">${formatDateTime(batch.createdAt).slice(-5)}</div>` : ""}
+            ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+          </div>
+          <div class="pi-info">
+            <span class="pi-main">${cb.quantity} un • ${cb.weightGrams}g cada • ${formatPrintTime(cb.totalMinutes)}</span>
+            <span class="pi-sub">
+              Filamento ${BRL(cb.filamentCost)} • Energia ${BRL(cb.energyCost)} • Extras ${BRL(cb.extraCosts)}
+              ${batch.note ? ` • ${escapeHtml(batch.note)}` : ""}
+            </span>
+          </div>
+          <div>
+            <span class="pi-origin nacional">🖨️ 3D</span>
+            <div class="pi-total">${BRL(cb.costTotal)}</div>
+          </div>
+          <div></div>
+        `;
+        history.appendChild(item);
+      });
+    }
+  } else {
+    historyTitleEl.textContent = "📜 Histórico de compras";
+    const purchases = [...(product.purchases || [])].sort(
+      (a, b) => purchaseSortKey(b).localeCompare(purchaseSortKey(a))
+    );
+    if (purchases.length === 0) {
+      history.innerHTML = `<p class="purchase-empty">Nenhuma compra registrada.</p>`;
+      $("#dm-last-purchase-info").textContent = "";
+    } else {
+      const last = purchases[0];
+      const { total: lastTotal } = calcPurchase(last);
+      const lastReg = last.createdAt ? ` às ${formatDateTime(last.createdAt).slice(-5)}` : "";
+      $("#dm-last-purchase-info").textContent =
+        `Última compra: ${formatDate(last.date)}${lastReg} • ${BRL(lastTotal)}`;
+
+      purchases.forEach((pu, idx) => {
+        const { total, unitCost } = calcPurchase(pu);
+        const item = document.createElement("div");
+        item.className = "purchase-item" + (idx === 0 ? " latest" : "");
+        item.innerHTML = `
+          <div class="pi-date">
+            ${formatDate(pu.date)}
+            ${pu.createdAt ? `<div class="pi-time">${formatDateTime(pu.createdAt).slice(-5)}</div>` : ""}
+            ${idx === 0 ? `<div class="pi-latest-tag">ÚLTIMA</div>` : ""}
+          </div>
+          <div class="pi-info">
+            <span class="pi-main">${pu.qty} un • ${BRL(pu.costProduct)} produto${
+              pu.costTax > 0 ? ` + ${BRL(pu.costTax)} imposto` : ""
+            }</span>
+            <span class="pi-sub">
+              Custo/un ${BRL(unitCost)}
+              ${pu.note ? ` • ${escapeHtml(pu.note)}` : ""}
+            </span>
+          </div>
+          <div>
+            <span class="pi-origin ${pu.origin || "nacional"}">${pu.origin || "nacional"}</span>
+            <div class="pi-total">${BRL(total)}</div>
+          </div>
+          <div></div>
+        `;
+        history.appendChild(item);
+      });
+    }
   }
 
   detailsModal.classList.remove("hidden");
