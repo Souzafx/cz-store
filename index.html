@@ -293,14 +293,27 @@
           </div>
 
           <div class="form-group full">
-            <label>
-              Descrição do produto (opcional)
-              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                — usado para anúncio / integração com loja online
-              </small>
-            </label>
+            <div class="description-header">
+              <label>
+                Descrição do produto (opcional)
+                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                  — usado para anúncio / integração com loja online
+                </small>
+              </label>
+              <div class="description-actions">
+                <button type="button" class="btn-desc-action" id="btn-gen-desc" title="Gerar descrição comercial baseada no nome">
+                  ✨ Gerar descrição
+                </button>
+                <button type="button" class="btn-desc-action" id="btn-improve-desc" title="Adicionar frase comercial ao final da descrição atual">
+                  + Melhorar
+                </button>
+                <button type="button" class="btn-desc-action danger" id="btn-clear-desc" title="Limpar descrição">
+                  ✕ Limpar
+                </button>
+              </div>
+            </div>
             <textarea id="f-description" rows="6"
-              placeholder="Detalhes, diferenciais, compatibilidade, conteúdo da embalagem, instruções, texto comercial para anúncio..."></textarea>
+              placeholder="Clique em ✨ Gerar descrição para criar automaticamente um texto comercial baseado no nome do produto..."></textarea>
           </div>
 
           <div class="form-group full">
@@ -914,6 +927,7 @@
   <script src="js/utils/format.js"></script>
   <script src="js/utils/images.js"></script>
   <script src="js/utils/calc.js"></script>
+  <script src="js/utils/description-generator.js"></script>
 
   <!-- Storage (camada de persistência) -->
   <script src="js/storage.js"></script>

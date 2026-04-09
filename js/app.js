@@ -402,6 +402,72 @@ function applyTypeVisibility(type) {
 }
 // >>> clique fora do modal NÃO fecha mais (removido propositalmente) <<<
 
+// ---------- Geração automática de descrição ----------
+/**
+ * Botão "Gerar descrição" — usa o nome + tipo do produto para criar
+ * uma descrição comercial pronta para anúncio. Se já houver texto,
+ * pergunta se quer substituir.
+ */
+$("#btn-gen-desc").addEventListener("click", () => {
+  const name = $("#f-name").value.trim();
+  if (!name) {
+    alert("⚠️ Preencha primeiro o nome do produto para gerar uma descrição.");
+    $("#f-name").focus();
+    return;
+  }
+
+  const type = getSelectedType();
+  const newText = generateDescription(name, { type });
+  const current = $("#f-description").value.trim();
+
+  if (current) {
+    const go = confirm(
+      "Já existe uma descrição preenchida.\n\n" +
+      "Deseja substituir pelo novo texto?\n\n" +
+      "(Clique em Cancelar para manter a descrição atual — use o botão " +
+      "'+ Melhorar' para adicionar uma frase ao final.)"
+    );
+    if (!go) return;
+  }
+
+  $("#f-description").value = newText;
+  $("#f-description").focus();
+});
+
+/**
+ * Botão "+ Melhorar" — adiciona uma frase comercial ao final da
+ * descrição existente, sem apagar o que já foi escrito.
+ */
+$("#btn-improve-desc").addEventListener("click", () => {
+  const name = $("#f-name").value.trim();
+  if (!name) {
+    alert("⚠️ Preencha primeiro o nome do produto.");
+    $("#f-name").focus();
+    return;
+  }
+
+  const type = getSelectedType();
+  const extra = generateImprovement(name, { type });
+  const current = $("#f-description").value.trim();
+
+  if (current) {
+    $("#f-description").value = current + "\n\n" + extra;
+  } else {
+    // Sem texto base, gera uma descrição completa
+    $("#f-description").value = generateDescription(name, { type });
+  }
+  $("#f-description").focus();
+});
+
+/** Botão "✕ Limpar" — zera a descrição. */
+$("#btn-clear-desc").addEventListener("click", () => {
+  if (!$("#f-description").value.trim()) return;
+  if (confirm("Tem certeza que deseja limpar a descrição?")) {
+    $("#f-description").value = "";
+    $("#f-description").focus();
+  }
+});
+
 // ---------- Upload de foto (arquivo local) ----------
 $("#f-photo").addEventListener("change", (e) => {
   const file = e.target.files[0];
