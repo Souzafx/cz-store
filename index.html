@@ -444,36 +444,47 @@
           </div>
         </div>
 
-        <!-- ===== Bloco: dados específicos da Shopee (opcional) ===== -->
-        <h4 class="section-title">🛒 Dados para Shopee <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">(opcional, usado na publicação)</small></h4>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>SKU</label>
-            <input type="text" id="f-sku" placeholder="Ex: GM8-CZSTORE" />
-          </div>
-          <div class="form-group">
-            <label>Marca</label>
-            <input type="text" id="f-brand" placeholder="Ex: Kailh" />
-          </div>
-          <div class="form-group">
-            <label>Peso (kg)</label>
-            <input type="number" id="f-weight" step="0.01" min="0" placeholder="0.10" />
-          </div>
-          <div class="form-group">
-            <label>ID Categoria Shopee</label>
-            <input type="number" id="f-category-id" min="0" placeholder="Ex: 100012" />
-          </div>
-          <div class="form-group">
-            <label>Comprimento (cm)</label>
-            <input type="number" id="f-dim-length" step="0.1" min="0" placeholder="10" />
-          </div>
-          <div class="form-group">
-            <label>Largura (cm)</label>
-            <input type="number" id="f-dim-width" step="0.1" min="0" placeholder="10" />
-          </div>
-          <div class="form-group">
-            <label>Altura (cm)</label>
-            <input type="number" id="f-dim-height" step="0.1" min="0" placeholder="5" />
+        <!-- ===== Bloco: dados específicos da Shopee (opcional, colapsável) ===== -->
+        <div class="collapsible collapsed" id="shopee-section">
+          <button type="button" class="section-title collapsible-toggle" data-target="shopee-section">
+            <span>🛒 Dados para Shopee
+              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                (opcional, usado na publicação)
+              </small>
+            </span>
+            <span class="collapsible-caret">▸</span>
+          </button>
+          <div class="collapsible-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>SKU</label>
+                <input type="text" id="f-sku" placeholder="Ex: GM8-CZSTORE" />
+              </div>
+              <div class="form-group">
+                <label>Marca</label>
+                <input type="text" id="f-brand" placeholder="Ex: Kailh" />
+              </div>
+              <div class="form-group">
+                <label>Peso (kg)</label>
+                <input type="number" id="f-weight" step="0.01" min="0" placeholder="0.10" />
+              </div>
+              <div class="form-group">
+                <label>ID Categoria Shopee</label>
+                <input type="number" id="f-category-id" min="0" placeholder="Ex: 100012" />
+              </div>
+              <div class="form-group">
+                <label>Comprimento (cm)</label>
+                <input type="number" id="f-dim-length" step="0.1" min="0" placeholder="10" />
+              </div>
+              <div class="form-group">
+                <label>Largura (cm)</label>
+                <input type="number" id="f-dim-width" step="0.1" min="0" placeholder="10" />
+              </div>
+              <div class="form-group">
+                <label>Altura (cm)</label>
+                <input type="number" id="f-dim-height" step="0.1" min="0" placeholder="5" />
+              </div>
+            </div>
           </div>
         </div>
 

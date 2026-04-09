@@ -337,6 +337,15 @@ $("#btn-new").addEventListener("click", () => {
 $("#modal-close").addEventListener("click", closeModal);
 $("#btn-cancel").addEventListener("click", closeModal);
 
+// Toggle genérico de seções colapsáveis (clica no título para abrir/fechar)
+document.querySelectorAll(".collapsible-toggle").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    const target = document.getElementById(btn.dataset.target);
+    if (target) target.classList.toggle("collapsed");
+  });
+});
+
 // Handler: troca de tipo no seletor (revenda <-> fabricação 3D)
 // Só efetivo quando criando novo produto — em edição o tipo é fixo.
 document.querySelectorAll('input[name="f-type"]').forEach((radio) => {

@@ -1110,6 +1110,44 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
   border-bottom: 1px solid var(--border);
 }
 .section-title:first-child { margin-top: 0; }
+
+/* Seção colapsável (botão-título) */
+button.section-title.collapsible-toggle {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0;
+  padding-right: 4px;
+  color: var(--red-hot);
+  transition: color 0.2s;
+}
+button.section-title.collapsible-toggle:hover { color: #fff; }
+.collapsible-caret {
+  font-size: 14px;
+  color: var(--text-soft);
+  transition: transform 0.2s;
+}
+.collapsible:not(.collapsed) .collapsible-caret {
+  transform: rotate(90deg);
+  color: var(--red-hot);
+}
+.collapsible-body {
+  overflow: hidden;
+  max-height: 2000px;
+  transition: max-height 0.3s ease, padding 0.2s, opacity 0.2s;
+  padding-top: 14px;
+}
+.collapsible.collapsed .collapsible-body {
+  max-height: 0;
+  padding-top: 0;
+  opacity: 0;
+}
 .section-title-row {
   display: flex;
   justify-content: space-between;
