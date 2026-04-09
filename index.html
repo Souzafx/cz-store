@@ -28,19 +28,9 @@
     html[data-initial-view="impressao3d"] #view-impressao3d,
     html[data-initial-view="historico"]   #view-historico { display: block; }
 
-    /* (2) e (3) Topbar — textos injetados via CSS antes do JS carregar.
-       Os elementos ficam vazios no HTML; :empty::before preenche.
-       Quando o JS rodar e setar textContent, o :empty some e o texto
-       real fica, sem duplicação. */
-    html[data-initial-view="dashboard"]   #view-title:empty::before { content: "Dashboard"; }
-    html[data-initial-view="produtos"]    #view-title:empty::before { content: "Produtos"; }
-    html[data-initial-view="impressao3d"] #view-title:empty::before { content: "Impressão 3D"; }
-    html[data-initial-view="historico"]   #view-title:empty::before { content: "Histórico de Compras"; }
-
-    html[data-initial-view="dashboard"]   #view-subtitle:empty::before { content: "Resumo financeiro da sua loja"; }
-    html[data-initial-view="produtos"]    #view-subtitle:empty::before { content: "Itens comprados prontos para revender"; }
-    html[data-initial-view="impressao3d"] #view-subtitle:empty::before { content: "Produtos fabricados por você"; }
-    html[data-initial-view="historico"]   #view-subtitle:empty::before { content: "Linha do tempo de todas as compras"; }
+    /* (2) e (3) Título e subtítulo: ver script inline logo após os
+       elementos no body. Não usar ::before para evitar diferenças
+       sutis de métrica entre pseudo-element e texto real. */
 
     /* (4) Sidebar — link ativo baseado na view atual. Usa attr selector
        para marcar o link correspondente sem precisar de JS.
@@ -106,10 +96,25 @@
     <!-- Topbar -->
     <header class="topbar">
       <div>
-        <!-- Textos preenchidos pelo <style> inline no head (via :empty::before)
-             antes do JS carregar. O JS depois chama .textContent e substitui. -->
+        <!-- Textos preenchidos pelo inline script abaixo, de forma síncrona,
+             imediatamente após o parser encontrar os elementos. Isso roda
+             ANTES do primeiro paint do topbar, evitando flash e layout shift. -->
         <h2 id="view-title"></h2>
         <p id="view-subtitle"></p>
+        <script>
+          (function () {
+            var v = document.documentElement.getAttribute("data-initial-view") || "dashboard";
+            var map = {
+              dashboard:   ["Dashboard",             "Resumo financeiro da sua loja"],
+              produtos:    ["Produtos",              "Itens comprados prontos para revender"],
+              impressao3d: ["Impressão 3D",          "Produtos fabricados por você"],
+              historico:   ["Histórico de Compras",  "Linha do tempo de todas as compras"],
+            };
+            var t = map[v] || map.dashboard;
+            document.getElementById("view-title").textContent = t[0];
+            document.getElementById("view-subtitle").textContent = t[1];
+          })();
+        </script>
       </div>
       <div class="topbar-actions">
         <!--
