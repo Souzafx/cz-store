@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CZ • Controle de Produtos</title>
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Restauração imediata da última view visitada (antes do primeiro paint) -->
+  <script>
+    (function () {
+      try {
+        const v = localStorage.getItem("cz_current_view") || "dashboard";
+        // Grava no <html> para o CSS aplicar antes de JS rodar
+        document.documentElement.setAttribute("data-initial-view", v);
+      } catch (_) { /* storage indisponível */ }
+    })();
+  </script>
 </head>
 <body>
   <!-- ============ SIDEBAR ============ -->
@@ -65,7 +75,9 @@
     </header>
 
     <!-- ============ DASHBOARD VIEW ============ -->
-    <section id="view-dashboard" class="view">
+    <!-- Todas as views começam escondidas — o JS revela a última visitada
+         (ou dashboard por padrão) antes de pintar, evitando o flash do F5. -->
+    <section id="view-dashboard" class="view hidden">
       <div class="cards">
         <div class="card card-invested">
           <span class="card-label">Total Investido</span>

@@ -173,6 +173,10 @@ function switchToView(view) {
   if (!VIEW_TITLES[view]) view = "dashboard";
   currentView = view;
 
+  // Remove o atributo de restauração inicial — a partir daqui o JS
+  // controla qual view é visível (via classe .hidden).
+  document.documentElement.removeAttribute("data-initial-view");
+
   // Atualiza a classe .active no link correspondente
   $$(".nav-link").forEach((l) => l.classList.remove("active"));
   const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
