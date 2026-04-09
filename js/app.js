@@ -173,20 +173,15 @@ function switchToView(view) {
   if (!VIEW_TITLES[view]) view = "dashboard";
   currentView = view;
 
-  // Remove o atributo de restauração inicial — a partir daqui o JS
-  // controla qual view é visível (via classe .hidden).
-  document.documentElement.removeAttribute("data-initial-view");
+  // A visibilidade é controlada pelo <style> inline no <head>, que
+  // usa o atributo html[data-initial-view="X"] para revelar a view
+  // correta (antes mesmo do JS carregar, eliminando flash no F5).
+  document.documentElement.setAttribute("data-initial-view", view);
 
   // Atualiza a classe .active no link correspondente
   $$(".nav-link").forEach((l) => l.classList.remove("active"));
   const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
   if (activeLink) activeLink.classList.add("active");
-
-  // Mostra/esconde as seções
-  $("#view-dashboard").classList.toggle("hidden", view !== "dashboard");
-  $("#view-produtos").classList.toggle("hidden", view !== "produtos");
-  $("#view-impressao3d").classList.toggle("hidden", view !== "impressao3d");
-  $("#view-historico").classList.toggle("hidden", view !== "historico");
 
   // Título e subtítulo no topo
   const [t, s] = VIEW_TITLES[view];
@@ -1674,7 +1669,7 @@ function render() {
   renderCatalog("resale", "", "#catalog", "#empty-catalog");
   renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
   renderDashboard();
-  if (!$("#view-historico").classList.contains("hidden")) {
+  if (currentView === "historico") {
     renderHistoryView();
   }
 }

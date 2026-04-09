@@ -4,17 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CZ • Controle de Produtos</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <!-- Restauração imediata da última view visitada (antes do primeiro paint) -->
+
+  <!--
+    PRE-PAINT: esconde todas as views e revela só a última visitada.
+    Precisa ser INLINE (não via arquivo externo) para rodar antes do
+    primeiro paint. Isso elimina o flash do dashboard no F5.
+  -->
+  <style>
+    #view-dashboard,
+    #view-produtos,
+    #view-impressao3d,
+    #view-historico { display: none; }
+
+    html[data-initial-view="dashboard"]   #view-dashboard,
+    html[data-initial-view="produtos"]    #view-produtos,
+    html[data-initial-view="impressao3d"] #view-impressao3d,
+    html[data-initial-view="historico"]   #view-historico { display: block; }
+  </style>
   <script>
     (function () {
       try {
-        const v = localStorage.getItem("cz_current_view") || "dashboard";
-        // Grava no <html> para o CSS aplicar antes de JS rodar
+        var v = localStorage.getItem("cz_current_view") || "dashboard";
         document.documentElement.setAttribute("data-initial-view", v);
-      } catch (_) { /* storage indisponível */ }
+      } catch (_) {}
     })();
   </script>
+
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <!-- ============ SIDEBAR ============ -->
@@ -75,9 +91,9 @@
     </header>
 
     <!-- ============ DASHBOARD VIEW ============ -->
-    <!-- Todas as views começam escondidas — o JS revela a última visitada
-         (ou dashboard por padrão) antes de pintar, evitando o flash do F5. -->
-    <section id="view-dashboard" class="view hidden">
+    <!-- Todas as views estão escondidas por default pelo <style> inline no head.
+         A view visível é controlada pelo atributo html[data-initial-view]. -->
+    <section id="view-dashboard" class="view">
       <div class="cards">
         <div class="card card-invested">
           <span class="card-label">Total Investido</span>
@@ -112,7 +128,7 @@
     </section>
 
     <!-- ============ PRODUCTS VIEW ============ -->
-    <section id="view-produtos" class="view hidden">
+    <section id="view-produtos" class="view">
       <div class="filters">
         <input type="search" id="search" placeholder="🔎 Buscar produto..." />
         <select id="sort">
@@ -137,7 +153,7 @@
     </section>
 
     <!-- ============ IMPRESSÃO 3D VIEW ============ -->
-    <section id="view-impressao3d" class="view hidden">
+    <section id="view-impressao3d" class="view">
       <div class="filters">
         <input type="search" id="search-3d" placeholder="🔎 Buscar produto 3D..." />
         <select id="sort-3d">
@@ -163,7 +179,7 @@
     </section>
 
     <!-- ============ HISTÓRICO VIEW ============ -->
-    <section id="view-historico" class="view hidden">
+    <section id="view-historico" class="view">
       <!-- Card de destaque: última compra -->
       <div class="panel last-purchase hidden" id="last-purchase-panel">
         <div class="last-purchase-badge">🕒 Última compra</div>

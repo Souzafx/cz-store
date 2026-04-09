@@ -1844,16 +1844,8 @@ button.section-title.collapsible-toggle:hover {
   .details-photo-wrap { width: 100%; max-width: 260px; margin: 0 auto; }
 }
 
-/* ===================== RESTAURAÇÃO DE VIEW (pré-JS) ===================== */
-/* O <html> recebe data-initial-view="produtos"/"impressao3d"/... do
-   inline script no <head>. Isso revela a view certa antes do JS rodar,
-   evitando o "flash" de dashboard no F5. */
-html[data-initial-view="dashboard"]   #view-dashboard,
-html[data-initial-view="produtos"]    #view-produtos,
-html[data-initial-view="impressao3d"] #view-impressao3d,
-html[data-initial-view="historico"]   #view-historico {
-  display: block !important;
-}
+/* Regras de visibilidade de view estão INLINE no <head> de index.html
+   (para rodar antes do primeiro paint). Não duplicar aqui. */
 
 /* ===================== UTIL / RESPONSIVE ===================== */
 .hidden { display: none !important; }
