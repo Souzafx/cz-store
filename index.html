@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CZ • Controle de Produtos</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-badge">CZ</div>
+      <div>
+        <h1>CZ Store</h1>
+        <span>Controle de Produtos</span>
+      </div>
+    </div>
+
+    <nav>
+      <a href="#dashboard" class="nav-link active" data-view="dashboard">
+        <span class="icon">📊</span> Dashboard
+      </a>
+      <a href="#produtos" class="nav-link" data-view="produtos">
+        <span class="icon">📦</span> Produtos
+      </a>
+      <a href="#historico" class="nav-link" data-view="historico">
+        <span class="icon">📜</span> Histórico
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <small>v2.0 • Local • MacBook M1</small>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div>
+        <h2 id="view-title">Dashboard</h2>
+        <p id="view-subtitle">Resumo financeiro da sua loja</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="btn btn-ghost" title="Importar planilha Excel (.xlsx)">
+          📥 Importar Excel
+          <input type="file" id="import-file" accept=".xlsx,.xls" hidden />
+        </label>
+        <button class="btn btn-primary" id="btn-new">+ Novo Produto</button>
+      </div>
+    </header>
+
+    <!-- ============ DASHBOARD VIEW ============ -->
+    <section id="view-dashboard" class="view">
+      <div class="cards">
+        <div class="card card-invested">
+          <span class="card-label">Total Investido</span>
+          <h3 id="stat-invested">R$ 0,00</h3>
+          <small>Produto + imposto</small>
+        </div>
+        <div class="card card-profit">
+          <span class="card-label">Lucro Total</span>
+          <h3 id="stat-profit">R$ 0,00</h3>
+          <small>Após taxas da plataforma</small>
+        </div>
+        <div class="card card-margin">
+          <span class="card-label">Margem Média</span>
+          <h3 id="stat-margin">0%</h3>
+          <small>Lucro sobre custo</small>
+        </div>
+        <div class="card card-count">
+          <span class="card-label">Produtos Cadastrados</span>
+          <h3 id="stat-count">0</h3>
+          <small>Itens distintos</small>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>🏆 Top 5 Mais Lucrativos</h3>
+        </div>
+        <div id="top-products" class="top-list">
+          <p class="empty">Nenhum produto cadastrado ainda.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PRODUCTS VIEW ============ -->
+    <section id="view-produtos" class="view hidden">
+      <div class="filters">
+        <input type="search" id="search" placeholder="🔎 Buscar produto..." />
+        <select id="sort">
+          <option value="recent">Mais recentes</option>
+          <option value="profit-desc">Maior lucro total</option>
+          <option value="profit-asc">Menor lucro total</option>
+          <option value="margin-desc">Maior margem %</option>
+          <option value="name">Nome (A-Z)</option>
+        </select>
+        <select id="filter-profit">
+          <option value="all">Todos os lucros</option>
+          <option value="positive">Apenas lucrativos</option>
+          <option value="high">Alto lucro (&gt; 50%)</option>
+          <option value="loss">Prejuízo</option>
+        </select>
+      </div>
+
+      <div id="catalog" class="catalog"></div>
+      <p id="empty-catalog" class="empty hidden">
+        Nenhum produto encontrado. Clique em <b>+ Novo Produto</b> para começar.
+      </p>
+    </section>
+
+    <!-- ============ HISTÓRICO VIEW ============ -->
+    <section id="view-historico" class="view hidden">
+      <!-- Card de destaque: última compra -->
+      <div class="panel last-purchase hidden" id="last-purchase-panel">
+        <div class="last-purchase-badge">🕒 Última compra</div>
+        <div class="last-purchase-grid">
+          <div class="last-purchase-photo-wrap">
+            <img id="lp-photo" alt="" />
+            <div id="lp-photo-empty" class="lp-photo-empty">📦</div>
+          </div>
+          <div class="last-purchase-info">
+            <h3 id="lp-product-name">—</h3>
+            <div class="lp-date" id="lp-date">—</div>
+            <div class="lp-note" id="lp-note"></div>
+          </div>
+          <div class="last-purchase-metrics">
+            <div><span>Produto</span><b id="lp-cost-product">R$ 0,00</b></div>
+            <div><span>Imposto</span><b id="lp-cost-tax">R$ 0,00</b></div>
+            <div class="lp-total"><span>Total</span><b id="lp-total">R$ 0,00</b></div>
+            <div><span>Quantidade</span><b id="lp-qty">0 un</b></div>
+            <div><span>Custo / unidade</span><b id="lp-unit-cost">R$ 0,00</b></div>
+            <div><span>Origem</span><b id="lp-origin">—</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header timeline-header">
+          <h3>📜 Linha do tempo de compras</h3>
+          <div class="timeline-filters">
+            <select id="timeline-filter-product">
+              <option value="all">Todos os produtos</option>
+            </select>
+            <select id="timeline-filter-origin">
+              <option value="all">Nacional + Importado</option>
+              <option value="nacional">Nacional</option>
+              <option value="importado">Importado</option>
+            </select>
+          </div>
+        </div>
+        <div id="global-timeline" class="timeline"></div>
+        <p id="empty-timeline" class="empty hidden">
+          Nenhuma compra registrada ainda.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ MODAL: PRODUTO ============ -->
+  <div class="modal hidden" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Novo Produto</h3>
+        <button class="icon-btn" id="modal-close" type="button">✕</button>
+      </div>
+
+      <form id="product-form">
+        <input type="hidden" id="product-id" />
+
+        <!-- ===== Bloco: importar do link ===== -->
+        <h4 class="section-title">🌐 Importar do link</h4>
+        <div class="import-url-box">
+          <div class="image-url-row">
+            <input type="url" id="f-import-url"
+                   placeholder="Cole o link do produto (AliExpress, Shopee, Amazon...)" />
+            <button type="button" class="btn btn-primary btn-sm" id="btn-import-url">
+              📥 Importar dados
+            </button>
+          </div>
+          <p id="import-status" class="image-status hidden"></p>
+          <small class="import-hint">
+            💡 Tenta extrair <b>nome</b>, <b>imagem</b> e <b>descrição</b>.
+            Se o site bloquear, preencha manualmente.
+          </small>
+        </div>
+
+        <!-- ===== Bloco: dados do produto ===== -->
+        <h4 class="section-title">📦 Informações do produto</h4>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nome do produto *</label>
+            <input type="text" id="f-name" required />
+          </div>
+
+          <div class="form-group">
+            <label>Unidades por kit/par *</label>
+            <input type="number" id="f-units-per-kit" min="1" value="2" required />
+          </div>
+
+          <div class="form-group">
+            <label>Preço de venda do kit/par (R$) *</label>
+            <input type="number" id="f-price" step="0.01" min="0" required />
+          </div>
+
+          <div class="form-group">
+            <label>Taxa da plataforma (%)</label>
+            <input type="number" id="f-fee" step="0.01" min="0" value="0" />
+          </div>
+
+          <div class="form-group">
+            <label>Lucro desejado (%)</label>
+            <input type="number" id="f-target-profit" step="1" min="0" value="100" />
+          </div>
+
+          <div class="form-group full">
+            <label>Link do produto (opcional)</label>
+            <input type="url" id="f-link" placeholder="https://..." />
+          </div>
+
+          <div class="form-group full">
+            <label>
+              Descrição do produto (opcional)
+              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                — usado para anúncio / integração com loja online
+              </small>
+            </label>
+            <textarea id="f-description" rows="6"
+              placeholder="Detalhes, diferenciais, compatibilidade, conteúdo da embalagem, instruções, texto comercial para anúncio..."></textarea>
+          </div>
+
+          <div class="form-group full">
+            <label>
+              URL da imagem principal
+              <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
+                — prioridade sobre upload local
+              </small>
+            </label>
+            <div class="image-url-row">
+              <input type="url" id="f-image-url"
+                placeholder="Cole o link da imagem aqui (AliExpress, Shopee, etc)" />
+              <button type="button" class="btn-image-action" id="btn-test-image" title="Testar imagem">
+                🔍 Testar
+              </button>
+              <button type="button" class="btn-image-action danger" id="btn-clear-image" title="Limpar imagem">
+                🗑️ Limpar
+              </button>
+            </div>
+            <p id="image-url-status" class="image-status hidden"></p>
+          </div>
+
+          <!-- ===== Galeria: imagens encontradas / selecionadas ===== -->
+          <div class="form-group full">
+            <div class="image-candidates hidden" id="image-candidates">
+              <div class="candidates-header">
+                <h5>
+                  🖼️ Imagens do produto
+                  <small>(<span id="candidates-count">0</span> encontradas • <span id="candidates-selected">0</span> na galeria)</small>
+                </h5>
+                <div class="candidates-actions">
+                  <button type="button" class="btn-image-action" id="btn-select-all-imgs">
+                    ☑ Selecionar todas
+                  </button>
+                  <button type="button" class="btn-image-action danger" id="btn-clear-imgs">
+                    ✕ Limpar seleção
+                  </button>
+                </div>
+              </div>
+              <p class="candidates-hint">
+                Clique numa imagem para adicionar à galeria •
+                Clique no ⭐ para definir como principal
+              </p>
+              <div id="candidates-grid" class="candidates-grid"></div>
+            </div>
+          </div>
+
+          <div class="form-group full">
+            <label>Ou fazer upload de arquivo</label>
+            <input type="file" id="f-photo" accept="image/*" />
+            <div class="preview-wrap">
+              <img id="photo-preview" alt="" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bloco: primeira compra (só ao criar novo) ===== -->
+        <div id="first-purchase-section">
+          <h4 class="section-title">🛒 Primeira compra</h4>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Data da compra *</label>
+              <input type="date" id="f-fp-date" required />
+            </div>
+            <div class="form-group">
+              <label>Quantidade (unidades) *</label>
+              <input type="number" id="f-fp-qty" min="1" value="1" required />
+            </div>
+            <div class="form-group">
+              <label>Custo do produto (R$) *</label>
+              <input type="number" id="f-fp-cost-product" step="0.01" min="0" required />
+            </div>
+            <div class="form-group">
+              <label>Imposto / taxas (R$)</label>
+              <input type="number" id="f-fp-cost-tax" step="0.01" min="0"
+                     placeholder="Opcional" />
+            </div>
+            <div class="form-group">
+              <label>Origem</label>
+              <select id="f-fp-origin">
+                <option value="nacional">Nacional</option>
+                <option value="importado">Importado</option>
+              </select>
+            </div>
+            <div class="form-group full">
+              <label>Observação (opcional)</label>
+              <input type="text" id="f-fp-note" placeholder="Ex: promoção black friday" />
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Bloco: histórico (só ao editar) ===== -->
+        <div id="history-section" class="hidden">
+          <div class="section-title-row">
+            <h4 class="section-title">📜 Histórico de compras</h4>
+            <button type="button" class="btn btn-primary btn-sm" id="btn-add-purchase">
+              + Nova compra
+            </button>
+          </div>
+          <div id="product-purchases-list" class="purchases-list"></div>
+        </div>
+
+        <!-- ===== Live calc ===== -->
+        <h4 class="section-title">🧮 Resumo financeiro</h4>
+        <div class="calc-box" id="calc-box">
+          <div class="calc-section">
+            <h5>💵 Custos (agregado das compras)</h5>
+            <div><span>Custo do produto</span><b id="c-cost-product">R$ 0,00</b></div>
+            <div><span>Imposto / taxas</span><b id="c-cost-tax">R$ 0,00</b></div>
+            <div><span>Custo total investido</span><b id="c-invested">R$ 0,00</b></div>
+            <div><span>Imposto (% do produto)</span><b id="c-tax-pct">0%</b></div>
+            <div><span>Custo por unidade</span><b id="c-cost-unit">R$ 0,00</b></div>
+            <div><span>Custo por kit/par</span><b id="c-cost-kit">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section">
+            <h5>📦 Estoque / Venda</h5>
+            <div><span>Quantidade total</span><b id="c-qty-total">0 un</b></div>
+            <div><span>Kits disponíveis</span><b id="c-kits">0</b></div>
+            <div><span>Unidades que sobram</span><b id="c-leftover">0</b></div>
+            <div><span>Líquido por kit</span><b id="c-net">R$ 0,00</b></div>
+            <div><span>Lucro por kit</span><b id="c-unit-profit">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section highlight">
+            <h5>📈 Resultado</h5>
+            <div><span>Lucro total</span><b id="c-total">R$ 0,00</b></div>
+            <div><span>Lucro sobre custo</span><b id="c-profit-cost">0%</b></div>
+            <div><span>Margem líquida</span><b id="c-net-margin">0%</b></div>
+          </div>
+
+          <div class="calc-section suggest">
+            <h5>🎯 Sugestão de preço</h5>
+            <div>
+              <span>Para <b id="c-target-label">100%</b> de lucro</span>
+              <b id="c-suggested">R$ 0,00</b>
+            </div>
+            <button type="button" class="btn-apply-suggest" id="btn-apply-suggest">
+              Usar este preço
+            </button>
+          </div>
+        </div>
+
+        <p id="leftover-warning" class="warn hidden">
+          ⚠️ Atenção: a quantidade total comprada não é divisível pelo tamanho do kit.
+          <b id="warn-text"></b>
+        </p>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: NOVA/EDITAR COMPRA ============ -->
+  <div class="modal hidden" id="purchase-modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3 id="purchase-modal-title">Nova Compra</h3>
+        <button class="icon-btn" id="purchase-modal-close" type="button">✕</button>
+      </div>
+
+      <form id="purchase-form">
+        <input type="hidden" id="purchase-id" />
+        <input type="hidden" id="purchase-product-id" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Data da compra *</label>
+            <input type="date" id="f-p-date" required />
+          </div>
+          <div class="form-group">
+            <label>Quantidade (unidades) *</label>
+            <input type="number" id="f-p-qty" min="1" required />
+          </div>
+          <div class="form-group">
+            <label>Custo do produto (R$) *</label>
+            <input type="number" id="f-p-cost-product" step="0.01" min="0" required />
+          </div>
+          <div class="form-group">
+            <label>Imposto / taxas (R$)</label>
+            <input type="number" id="f-p-cost-tax" step="0.01" min="0" />
+          </div>
+          <div class="form-group full">
+            <label>Origem</label>
+            <select id="f-p-origin">
+              <option value="nacional">Nacional</option>
+              <option value="importado">Importado</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Observação (opcional)</label>
+            <input type="text" id="f-p-note" placeholder="Ex: fornecedor XPTO" />
+          </div>
+        </div>
+
+        <div class="calc-box-mini" id="purchase-live-calc">
+          <div><span>Total da compra</span><b id="cp-total">R$ 0,00</b></div>
+          <div><span>Custo por unidade</span><b id="cp-unit">R$ 0,00</b></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="btn-p-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar compra</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ MODAL: DETALHES DO PRODUTO ============ -->
+  <div class="modal hidden" id="details-modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3 id="dm-modal-title">Detalhes do Produto</h3>
+        <button class="icon-btn" id="dm-close" type="button">✕</button>
+      </div>
+
+      <div class="details-body">
+        <!-- Hero: foto grande + informações principais -->
+        <div class="details-hero">
+          <div class="details-photo-wrap">
+            <img id="dm-photo" alt="" />
+            <div id="dm-photo-empty" class="details-photo-empty">📦</div>
+          </div>
+          <div class="details-head">
+            <h2 id="dm-name">—</h2>
+            <div class="details-badges" id="dm-badges"></div>
+            <p class="details-dates" id="dm-dates"></p>
+            <a id="dm-link" href="#" target="_blank" class="details-link hidden">
+              🔗 Abrir link do produto
+            </a>
+          </div>
+        </div>
+
+        <!-- Galeria -->
+        <div class="details-section hidden" id="dm-gallery-section">
+          <h4>🖼️ Galeria de imagens</h4>
+          <div class="details-gallery" id="dm-gallery"></div>
+        </div>
+
+        <!-- Descrição -->
+        <div class="details-section">
+          <div class="details-section-head">
+            <h4>📝 Descrição</h4>
+            <div class="details-section-actions">
+              <button type="button" class="btn-copy" id="dm-copy-desc" title="Copiar para área de transferência">
+                📋 Copiar descrição
+              </button>
+            </div>
+          </div>
+          <div id="dm-description" class="details-description"></div>
+        </div>
+
+        <!-- Financeiro -->
+        <div class="details-section">
+          <h4>💰 Financeiro</h4>
+          <div class="details-grid">
+            <div class="dg-item"><span>Valor do produto</span><b id="dm-cost-product">R$ 0,00</b></div>
+            <div class="dg-item"><span>Imposto / taxas</span><b id="dm-cost-tax">R$ 0,00</b></div>
+            <div class="dg-item highlight"><span>Investimento total</span><b id="dm-invested">R$ 0,00</b></div>
+            <div class="dg-item"><span>Custo por unidade</span><b id="dm-cost-unit">R$ 0,00</b></div>
+            <div class="dg-item"><span>Custo por kit/par</span><b id="dm-cost-kit">R$ 0,00</b></div>
+            <div class="dg-item"><span>Preço de venda</span><b id="dm-price">R$ 0,00</b></div>
+            <div class="dg-item"><span>Taxa plataforma</span><b id="dm-fee">0%</b></div>
+            <div class="dg-item"><span>Líquido por kit</span><b id="dm-net">R$ 0,00</b></div>
+            <div class="dg-item"><span>Lucro por kit</span><b id="dm-profit-kit">R$ 0,00</b></div>
+            <div class="dg-item profit"><span>Lucro total</span><b id="dm-profit-total">R$ 0,00</b></div>
+            <div class="dg-item"><span>Margem líquida</span><b id="dm-margin">0%</b></div>
+            <div class="dg-item"><span>Lucro sobre custo</span><b id="dm-profit-cost">0%</b></div>
+          </div>
+        </div>
+
+        <!-- Estoque -->
+        <div class="details-section">
+          <h4>📦 Estoque</h4>
+          <div class="details-grid">
+            <div class="dg-item"><span>Quantidade comprada</span><b id="dm-qty">0 un</b></div>
+            <div class="dg-item"><span>Unidades por kit</span><b id="dm-units-per-kit">1</b></div>
+            <div class="dg-item"><span>Kits disponíveis</span><b id="dm-kits">0</b></div>
+            <div class="dg-item"><span>Unidades sobrando</span><b id="dm-leftover">0</b></div>
+          </div>
+        </div>
+
+        <!-- Histórico -->
+        <div class="details-section">
+          <div class="details-section-head">
+            <h4>📜 Histórico de compras</h4>
+            <small id="dm-last-purchase-info" class="details-hint"></small>
+          </div>
+          <div id="dm-history" class="purchases-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="dm-close2">Fechar</button>
+        <button type="button" class="btn btn-danger" id="dm-delete">🗑️ Excluir</button>
+        <button type="button" class="btn btn-primary" id="dm-edit">✏️ Editar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCRIPTS ============ -->
+  <!-- Biblioteca externa -->
+  <script src="lib/xlsx.full.min.js"></script>
+
+  <!-- Utilitários puros (sem DOM) -->
+  <script src="js/utils/format.js"></script>
+  <script src="js/utils/images.js"></script>
+  <script src="js/utils/calc.js"></script>
+
+  <!-- Storage (camada de persistência) -->
+  <script src="js/storage.js"></script>
+
+  <!-- Aplicação (UI, modais, renderização, importadores) -->
+  <script src="js/app.js"></script>
+</body>
+</html>

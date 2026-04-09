@@ -1,0 +1,71 @@
+# ============================================
+# CZ Store — .gitignore
+# ============================================
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# ---- Editores / IDEs ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ---- Node (caso no futuro use build) ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json.backup
+
+# ---- Build / dist ----
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+.next/
+.vite/
+
+# ---- Variáveis de ambiente ----
+.env
+.env.local
+.env.*.local
+.env.production
+
+# ---- Logs ----
+logs/
+*.log
+
+# ---- Arquivos temporários ----
+*.tmp
+*.temp
+*.bak
+.tmp/
+
+# ---- Dados locais / backups ----
+# Planilhas de teste não versionadas
+*.xlsx.bak
+backup/
+data-local/
+dump.json
+
+# ---- Ignora imagens enviadas localmente (opcional) ----
+# uploads/
+# user-images/
+
+# ---- Bibliotecas pesadas que o usuário baixa ----
+# O xlsx.full.min.js fica versionado para facilitar o clone.
+# Se preferir não versionar, descomente:
+# lib/xlsx.full.min.js
