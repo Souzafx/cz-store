@@ -1949,6 +1949,59 @@ button.section-title.collapsible-toggle:hover {
   display: flex;
   gap: 12px;
   margin-top: 6px;
+  justify-content: flex-end;
+}
+
+/* ---- Componente de tempo (horas : minutos) estilo Apple ---- */
+.time-input-group {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 6px;
+  gap: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.time-input-group:focus-within {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.2);
+}
+.time-input {
+  width: 52px;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.time-input::-webkit-inner-spin-button,
+.time-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.time-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 2px;
+  user-select: none;
+}
+.time-sep {
+  font-size: 20px;
+  color: var(--red);
+  font-weight: 700;
+  padding: 0 6px;
+  line-height: 1;
+  user-select: none;
+  opacity: 0.6;
 }
 
 /* Resultados (coluna direita) */

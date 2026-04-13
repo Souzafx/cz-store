@@ -265,14 +265,14 @@
                 <span class="calc3d-suffix">gramas</span>
               </div>
             </div>
-            <div class="calc3d-field-row">
-              <div class="calc3d-field">
-                <label>Duração — horas</label>
-                <input type="number" id="c3d-hours" min="0" value="0" />
-              </div>
-              <div class="calc3d-field">
-                <label>Duração — minutos</label>
-                <input type="number" id="c3d-minutes" min="0" max="59" value="0" />
+            <div class="calc3d-field">
+              <label>Duração da impressão</label>
+              <div class="time-input-group">
+                <input type="number" id="c3d-hours" min="0" value="0" class="time-input" />
+                <span class="time-label">h</span>
+                <span class="time-sep">:</span>
+                <input type="number" id="c3d-minutes" min="0" max="59" value="0" class="time-input" />
+                <span class="time-label">min</span>
               </div>
             </div>
           </div>
@@ -339,13 +339,10 @@
             </div>
           </div>
 
-          <!-- Botões -->
+          <!-- Botão -->
           <div class="calc3d-actions">
-            <button type="button" class="btn btn-primary" id="btn-calc3d-calc">
-              Calcular
-            </button>
             <button type="button" class="btn btn-ghost" id="btn-calc3d-clear">
-              Limpar
+              Limpar campos
             </button>
           </div>
         </div>
