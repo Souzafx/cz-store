@@ -2732,7 +2732,7 @@ function pick(row, keys) {
 // ==============================================================
 (function initCalc3D() {
   const ids = [
-    "c3d-filament-price", "c3d-grams", "c3d-hours", "c3d-minutes",
+    "c3d-filament-price", "c3d-grams", "c3d-duration",
     "c3d-energy-price", "c3d-printer-watts", "c3d-profit-margin",
     "c3d-extra-cost",
   ];
@@ -2750,7 +2750,7 @@ function pick(row, keys) {
       ids.forEach((id) => {
         const el = document.getElementById(id);
         if (el) {
-          if (el.type === "number") el.value = id === "c3d-profit-margin" ? 100 : "";
+          if (id === "c3d-profit-margin") el.value = 100;
           else el.value = "";
         }
       });
@@ -2764,8 +2764,20 @@ function pick(row, keys) {
     // Leitura dos inputs
     const filPrice = parseFloat(document.getElementById("c3d-filament-price")?.value) || 0;
     const grams = parseFloat(document.getElementById("c3d-grams")?.value) || 0;
-    const hours = parseInt(document.getElementById("c3d-hours")?.value) || 0;
-    const minutes = parseInt(document.getElementById("c3d-minutes")?.value) || 0;
+
+    // Parse do campo unificado de duração (aceita "7:30", "7.5", "7,5" ou "7")
+    const durationRaw = (document.getElementById("c3d-duration")?.value || "").trim();
+    let hours = 0, minutes = 0;
+    if (durationRaw.includes(":")) {
+      const parts = durationRaw.split(":");
+      hours = parseInt(parts[0]) || 0;
+      minutes = parseInt(parts[1]) || 0;
+    } else {
+      // Aceita "7.5" ou "7,5" como 7h30
+      const decimal = parseFloat(durationRaw.replace(",", ".")) || 0;
+      hours = Math.floor(decimal);
+      minutes = Math.round((decimal - hours) * 60);
+    }
     const energyPrice = parseFloat(document.getElementById("c3d-energy-price")?.value) || 0;
     const printerW = parseFloat(document.getElementById("c3d-printer-watts")?.value) || 0;
     const profitMargin = parseFloat(document.getElementById("c3d-profit-margin")?.value) || 0;

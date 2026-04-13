@@ -268,11 +268,12 @@
             <div class="calc3d-field">
               <label>Duração da impressão</label>
               <div class="calc3d-input-row">
-                <input type="number" id="c3d-hours" min="0" value="0" placeholder="0" />
-                <span class="calc3d-suffix">h</span>
-                <input type="number" id="c3d-minutes" min="0" max="59" value="0" placeholder="0" />
-                <span class="calc3d-suffix">min</span>
+                <input type="text" id="c3d-duration" placeholder="7:30" inputmode="numeric" />
+                <span class="calc3d-suffix">h:min</span>
               </div>
+              <small class="calc3d-hint">
+                Digite no formato horas:minutos. Ex: 7:30 = 7 horas e 30 minutos
+              </small>
             </div>
           </div>
 
