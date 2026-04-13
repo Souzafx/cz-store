@@ -1885,18 +1885,17 @@ function renderDashboard() {
   $("#stat-margin").textContent = PCT(marginCount ? marginSum / marginCount : 0);
   $("#stat-count").textContent = all.length;
 
-  const top = enriched.sort((a, b) => b.totalProfit - a.totalProfit).slice(0, 5);
+  const sorted = enriched.sort((a, b) => b.totalProfit - a.totalProfit);
   const topEl = $("#top-products");
-  if (top.length === 0) {
+  if (sorted.length === 0) {
     topEl.innerHTML = `<p class="empty">Nenhum produto cadastrado ainda.</p>`;
     return;
   }
-  topEl.innerHTML = top
-    .map(
-      (p) => {
-        const src = getProductImage(p);
-        return `
-    <div class="top-item">
+  topEl.innerHTML = sorted
+    .map((p) => {
+      const src = getProductImage(p);
+      return `
+    <div class="top-item" data-id="${p.id}">
       ${
         src
           ? `<img src="${escapeHtml(src)}" alt="" onerror="this.outerHTML='<div class=\\'thumb-empty\\' style=\\'width:48px;height:48px\\'>📦</div>'">`
@@ -1907,11 +1906,23 @@ function renderDashboard() {
         <span>${p.kits} ${p.unitsPerKit > 1 ? "kits" : "un"} • ${PCT(p.profitOnCost)} lucro</span>
       </div>
       <div class="profit">${BRL(p.totalProfit)}</div>
+      <button class="top-item-delete" data-del-dash="${p.id}" title="Excluir produto">🗑️</button>
     </div>
   `;
-      }
-    )
+    })
     .join("");
+
+  // Bind dos botões de excluir no dashboard
+  topEl.querySelectorAll("[data-del-dash]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const name = Storage.get(btn.dataset.delDash)?.name || "este produto";
+      if (confirm(`Tem certeza que deseja excluir "${name}"?`)) {
+        Storage.remove(btn.dataset.delDash);
+        render();
+      }
+    });
+  });
 }
 
 // ==============================================================
