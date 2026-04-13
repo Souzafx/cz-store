@@ -1956,10 +1956,10 @@ button.section-title.collapsible-toggle:hover {
 .time-input-group {
   display: inline-flex;
   align-items: center;
-  background: var(--bg);
+  background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 4px 6px;
+  padding: 6px 14px;
   gap: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -1967,22 +1967,28 @@ button.section-title.collapsible-toggle:hover {
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.2);
 }
-.time-input {
-  width: 52px;
-  padding: 10px 4px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-size: 18px;
-  font-weight: 700;
-  font-family: inherit;
-  text-align: center;
-  outline: none;
-  -moz-appearance: textfield;
+input.time-input,
+input.time-input:focus {
+  width: 48px !important;
+  padding: 8px 2px !important;
+  border: none !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  text-align: center !important;
+  outline: none !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  -moz-appearance: textfield !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
 }
-.time-input::-webkit-inner-spin-button,
-.time-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
+input.time-input::-webkit-inner-spin-button,
+input.time-input::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  display: none !important;
   margin: 0;
 }
 .time-label {
@@ -1991,17 +1997,17 @@ button.section-title.collapsible-toggle:hover {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 0 2px;
+  padding: 0 6px 0 4px;
   user-select: none;
 }
 .time-sep {
-  font-size: 20px;
+  font-size: 22px;
   color: var(--red);
   font-weight: 700;
-  padding: 0 6px;
+  padding: 0 8px;
   line-height: 1;
   user-select: none;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 /* Resultados (coluna direita) */
