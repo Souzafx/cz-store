@@ -488,46 +488,51 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Peso por peça (g) *</label>
-              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 65" />
+              <label>Gramas de filamento usadas *</label>
+              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 240" />
             </div>
 
             <div class="form-group">
-              <label>Custo do filamento (R$/kg) *</label>
-              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 140.00" />
+              <label>Preço do kg do filamento (R$) *</label>
+              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 54.00" />
             </div>
             <div class="form-group">
-              <label>
-                Custo por hora de impressão (R$)
-                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                  — energia + depreciação
-                </small>
-              </label>
-              <input type="number" id="f-fprod-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+              <label>Consumo da impressora (Watts)</label>
+              <input type="number" id="f-fprod-printer-watts" step="1" min="0" placeholder="Ex: 200" />
             </div>
 
             <div class="form-group">
-              <label>Tempo — horas</label>
+              <label>Valor da energia (R$/kWh)</label>
+              <input type="number" id="f-fprod-energy-price" step="0.01" min="0" placeholder="Ex: 0.96" />
+            </div>
+            <div class="form-group">
+              <label>Tempo de impressão — horas</label>
               <input type="number" id="f-fprod-hours" min="0" value="0" />
             </div>
+
             <div class="form-group">
-              <label>Tempo — minutos</label>
+              <label>Tempo de impressão — minutos</label>
               <input type="number" id="f-fprod-minutes" min="0" max="59" value="0" />
             </div>
-
-            <div class="form-group full">
-              <label>
-                Custos extras manuais (R$)
-                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                  — embalagem, cola, imã, parafuso, mão de obra, acabamento
-                </small>
-              </label>
-              <input type="number" id="f-fprod-extras" step="0.01" min="0" placeholder="Ex: 2.50" />
-            </div>
-
             <div class="form-group full">
               <label>Observação (opcional)</label>
-              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, primeira tiragem" />
+              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, 0.2mm layer" />
+            </div>
+          </div>
+
+          <!-- Item adicional opcional -->
+          <h4 class="section-title">🔩 Produto adicional (opcional)</h4>
+          <p style="font-size:11px;color:var(--text-dim);margin:-10px 0 14px">
+            Ex: lâmpada, imã, parafuso, cabo, LED, bateria, embalagem especial
+          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nome do item</label>
+              <input type="text" id="f-fprod-extra-item-name" placeholder="Ex: Lâmpada LED" />
+            </div>
+            <div class="form-group">
+              <label>Custo do item (R$)</label>
+              <input type="number" id="f-fprod-extra-item-cost" step="0.01" min="0" placeholder="Ex: 8.00" />
             </div>
           </div>
         </div>
@@ -644,24 +649,29 @@
         <!-- Resumo IMPRESSÃO 3D -->
         <div class="calc-box type-3d-only hidden" id="calc-box-3d">
           <div class="calc-section">
-            <h5>🧵 Custos de produção</h5>
+            <h5>🧵 Produção</h5>
             <div><span>Custo do filamento</span><b id="c3-filament">R$ 0,00</b></div>
-            <div><span>Custo do tempo de impressão</span><b id="c3-time">R$ 0,00</b></div>
-            <div><span>Custos extras manuais</span><b id="c3-extras">R$ 0,00</b></div>
-            <div><span>Custo total unitário</span><b id="c3-unit-cost">R$ 0,00</b></div>
+            <div><span>Custo da energia</span><b id="c3-energy">R$ 0,00</b></div>
+            <div><span>Custo base da impressão</span><b id="c3-base">R$ 0,00</b></div>
           </div>
 
           <div class="calc-section">
-            <h5>🖨️ Lote</h5>
-            <div><span>Quantidade produzida</span><b id="c3-qty">0 un</b></div>
-            <div><span>Peso total</span><b id="c3-total-weight">0 g</b></div>
-            <div><span>Tempo total de impressão</span><b id="c3-total-time">—</b></div>
-            <div><span>Custo total do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
+            <h5>🔩 Adicional</h5>
+            <div><span>Item</span><b id="c3-extra-name">—</b></div>
+            <div><span>Custo do item</span><b id="c3-extra-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section highlight">
+            <h5>💰 Total</h5>
+            <div><span>Custo total final</span><b id="c3-unit-cost">R$ 0,00</b></div>
+            <div><span>Quantidade</span><b id="c3-qty">0 un</b></div>
+            <div><span>Custo do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
           </div>
 
           <div class="calc-section highlight">
             <h5>📈 Resultado</h5>
-            <div><span>Líquido por unidade</span><b id="c3-net">R$ 0,00</b></div>
+            <div><span>Preço de venda</span><b id="c3-sell-price">R$ 0,00</b></div>
+            <div><span>Líquido (após taxa)</span><b id="c3-net">R$ 0,00</b></div>
             <div><span>Lucro por unidade</span><b id="c3-profit-unit">R$ 0,00</b></div>
             <div><span>Lucro total</span><b id="c3-profit-total">R$ 0,00</b></div>
             <div><span>Lucro sobre custo</span><b id="c3-profit-cost">0%</b></div>
@@ -669,10 +679,14 @@
           </div>
 
           <div class="calc-section suggest">
-            <h5>🎯 Quanto devo cobrar para <span id="c3-target-label">100%</span> de lucro</h5>
+            <h5>🎯 Preço sugerido para <span id="c3-target-label">100%</span> de lucro</h5>
             <div>
-              <span>Preço sugerido</span>
+              <span>Você deve cobrar</span>
               <b id="c3-suggested">R$ 0,00</b>
+            </div>
+            <div>
+              <span>Lucro estimado</span>
+              <b id="c3-estimated-profit">R$ 0,00</b>
             </div>
             <button type="button" class="btn-apply-suggest" id="btn-apply-suggest-3d">
               Usar este preço
@@ -783,42 +797,54 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Peso por peça (g) *</label>
-            <input type="number" id="f-pr-weight" step="0.1" min="0" required />
+            <label>Gramas de filamento *</label>
+            <input type="number" id="f-pr-weight" step="0.1" min="0" required placeholder="Ex: 240" />
           </div>
 
           <div class="form-group">
-            <label>Custo do filamento (R$/kg) *</label>
-            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required />
+            <label>Preço do kg (R$) *</label>
+            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required placeholder="Ex: 54.00" />
           </div>
           <div class="form-group">
-            <label>Custo por hora (R$)</label>
-            <input type="number" id="f-pr-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+            <label>Consumo impressora (Watts)</label>
+            <input type="number" id="f-pr-printer-watts" step="1" min="0" placeholder="Ex: 200" />
           </div>
 
+          <div class="form-group">
+            <label>Valor energia (R$/kWh)</label>
+            <input type="number" id="f-pr-energy-price" step="0.01" min="0" placeholder="Ex: 0.96" />
+          </div>
           <div class="form-group">
             <label>Tempo — horas</label>
             <input type="number" id="f-pr-hours" min="0" value="0" />
           </div>
+
           <div class="form-group">
             <label>Tempo — minutos</label>
             <input type="number" id="f-pr-minutes" min="0" max="59" value="0" />
           </div>
-
-          <div class="form-group full">
-            <label>Custos extras (R$)</label>
-            <input type="number" id="f-pr-extras" step="0.01" min="0" />
-          </div>
-
           <div class="form-group full">
             <label>Observação</label>
             <input type="text" id="f-pr-note" placeholder="Ex: PLA laranja, lote noturno" />
           </div>
+
+          <div class="form-group">
+            <label>Item adicional (nome)</label>
+            <input type="text" id="f-pr-extra-item-name" placeholder="Ex: Lâmpada LED" />
+          </div>
+          <div class="form-group">
+            <label>Custo do item (R$)</label>
+            <input type="number" id="f-pr-extra-item-cost" step="0.01" min="0" placeholder="Ex: 8.00" />
+          </div>
         </div>
 
         <div class="calc-box-mini" id="production-live-calc">
-          <div><span>Custo por unidade</span><b id="pr-unit">R$ 0,00</b></div>
-          <div><span>Custo total do lote</span><b id="pr-total">R$ 0,00</b></div>
+          <div><span>Filamento</span><b id="pr-filament">R$ 0,00</b></div>
+          <div><span>Energia</span><b id="pr-energy">R$ 0,00</b></div>
+          <div><span>Base</span><b id="pr-base">R$ 0,00</b></div>
+          <div><span>Adicional</span><b id="pr-extra">R$ 0,00</b></div>
+          <div><span>Custo/unidade</span><b id="pr-unit">R$ 0,00</b></div>
+          <div><span>Custo lote</span><b id="pr-total">R$ 0,00</b></div>
         </div>
 
         <div class="modal-actions">

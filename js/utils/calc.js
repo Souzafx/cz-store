@@ -97,39 +97,85 @@ function calcProductResale(p, targetProfitPct = 100) {
 /**
  * Calcula custos de UM batch de produção 3D.
  *
- * Fórmulas:
- *   tempo_total_horas = printHours + printMinutes/60
- *   custo_tempo       = tempo_total_horas × hourCost
- *   custo_filamento   = (weightGrams / 1000) × filamentCostPerKg
- *   custo_unitário    = custo_filamento + custo_tempo + extraCosts
- *   custo_total_lote  = custo_unitário × quantity
+ * Modelo de custo realista:
+ *
+ *   1) Filamento
+ *      custo_filamento = (gramas / 1000) × preço_kg
+ *
+ *   2) Energia
+ *      tempo_horas      = printHours + printMinutes/60
+ *      consumo_kwh      = (printerWatts / 1000) × tempo_horas
+ *      custo_energia    = consumo_kwh × energyCostPerKwh
+ *
+ *   3) Base
+ *      custo_base = custo_filamento + custo_energia
+ *
+ *   4) Item adicional (opcional: lâmpada, imã, parafuso, cabo, led...)
+ *      custo_adicional = extraItemCost || 0
+ *
+ *   5) Total por unidade
+ *      custo_unitário = custo_base + custo_adicional
+ *      custo_lote     = custo_unitário × quantidade
  */
 function calcProductionBatch(batch) {
   const weight = Number(batch.weightGrams) || 0;
   const filKg = Number(batch.filamentCostPerKg) || 0;
-  const hourCost = Number(batch.hourCost) || 0;
-  const extras = Number(batch.extraCosts) || 0;
   const qty = Math.max(1, Number(batch.quantity) || 1);
   const hours = Number(batch.printHours) || 0;
   const minutes = Number(batch.printMinutes) || 0;
 
+  // Energia: potência da impressora (W) + tarifa (R$/kWh)
+  const printerWatts = Number(batch.printerWatts) || 0;
+  const energyPrice = Number(batch.energyCostPerKwh) || 0;
+
+  // Item adicional opcional (lâmpada, imã, parafuso, etc)
+  const extraItemName = batch.extraItemName || "";
+  const extraItemCost = Number(batch.extraItemCost) || 0;
+
+  // Backward compat: se batch antigo tinha hourCost, converte pra energia estimada
+  const legacyHourCost = Number(batch.hourCost) || 0;
+
+  // Tempo
   const totalHours = hours + minutes / 60;
   const totalMinutes = hours * 60 + minutes;
+
+  // 1) Filamento
   const filamentCost = (weight / 1000) * filKg;
-  const timeCost = totalHours * hourCost;
-  const costUnit = filamentCost + timeCost + extras;
+
+  // 2) Energia
+  let energyCost;
+  if (printerWatts > 0 && energyPrice > 0) {
+    const consumptionKwh = (printerWatts / 1000) * totalHours;
+    energyCost = consumptionKwh * energyPrice;
+  } else if (legacyHourCost > 0) {
+    // Fallback: hourCost antigo (custo fixo por hora)
+    energyCost = totalHours * legacyHourCost;
+  } else {
+    energyCost = 0;
+  }
+
+  // 3) Base (filamento + energia)
+  const baseCost = filamentCost + energyCost;
+
+  // 4) Total = base + item adicional
+  const costUnit = baseCost + extraItemCost;
   const costTotal = costUnit * qty;
 
   return {
     filamentCost,
-    timeCost,
-    extraCosts: extras,
+    energyCost,
+    baseCost,
+    extraItemName,
+    extraItemCost,
     costUnit,
     costTotal,
     quantity: qty,
     weightGrams: weight,
     totalMinutes,
     totalHours,
+    printerWatts,
+    energyCostPerKwh: energyPrice,
+    consumptionKwh: printerWatts > 0 ? (printerWatts / 1000) * totalHours : 0,
     material: batch.material || "PLA",
   };
 }
@@ -140,8 +186,9 @@ function calcProduct3D(p, targetProfitPct = 100) {
   let totalInvested = 0;
   let totalQty = 0;
   let totalFilamentCost = 0;
-  let totalTimeCost = 0;
-  let totalExtras = 0;
+  let totalEnergyCost = 0;
+  let totalBaseCost = 0;
+  let totalExtraItemCost = 0;
   let totalWeight = 0;
   let totalMinutes = 0;
 
@@ -150,8 +197,9 @@ function calcProduct3D(p, targetProfitPct = 100) {
     totalInvested += c.costTotal;
     totalQty += c.quantity;
     totalFilamentCost += c.filamentCost * c.quantity;
-    totalTimeCost += c.timeCost * c.quantity;
-    totalExtras += c.extraCosts * c.quantity;
+    totalEnergyCost += c.energyCost * c.quantity;
+    totalBaseCost += c.baseCost * c.quantity;
+    totalExtraItemCost += c.extraItemCost * c.quantity;
     totalWeight += c.weightGrams * c.quantity;
     totalMinutes += c.totalMinutes;
   });
@@ -175,12 +223,11 @@ function calcProduct3D(p, targetProfitPct = 100) {
 
   return {
     type: "3d_print",
-    // Compatibilidade com a forma comum (cards/details reaproveitam)
-    costProduct: totalFilamentCost + totalExtras,
-    costTax: totalTimeCost,
+    costProduct: totalFilamentCost + totalExtraItemCost,
+    costTax: totalEnergyCost,
     totalInvested,
     costUnit,
-    costPerKit: costUnit,   // em 3D, 1 unidade = 1 venda
+    costPerKit: costUnit,
     taxPct: 0,
     qtyBought: totalQty,
     kits: totalQty,
@@ -196,10 +243,11 @@ function calcProduct3D(p, targetProfitPct = 100) {
     // Campos específicos de 3D
     is3D: true,
     totalFilamentCost,
-    totalTimeCost,
-    totalExtras,
-    totalWeight,       // gramas somadas
-    totalMinutes,      // tempo de impressão total
+    totalEnergyCost,
+    totalBaseCost,
+    totalExtraItemCost,
+    totalWeight,
+    totalMinutes,
     totalHours: totalMinutes / 60,
     avgWeightPerUnit: totalQty > 0 ? totalWeight / totalQty : 0,
     batchCount: history.length,
