@@ -171,6 +171,8 @@ const VIEW_TITLES = {
  */
 function switchToView(view) {
   if (!VIEW_TITLES[view]) view = "dashboard";
+  // Se a view não existe no DOM (ex: impressao3d comentada), vai pro dashboard
+  if (view !== "dashboard" && !document.getElementById("view-" + view)) view = "dashboard";
   currentView = view;
 
   // A visibilidade é controlada pelo <style> inline no <head>, que
@@ -1639,10 +1641,13 @@ $("#production-form").addEventListener("submit", (e) => {
   $(sel).addEventListener("input", render);
   $(sel).addEventListener("change", render);
 });
-// Impressão 3D — inputs com sufixo "-3d"
+// Impressão 3D — inputs com sufixo "-3d" (se a view existir no DOM)
 ["#search-3d", "#sort-3d", "#filter-profit-3d"].forEach((sel) => {
-  $(sel).addEventListener("input", render);
-  $(sel).addEventListener("change", render);
+  const el = $(sel);
+  if (el) {
+    el.addEventListener("input", render);
+    el.addEventListener("change", render);
+  }
 });
 
 /**
@@ -1660,10 +1665,12 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
     productType === "3d_print" ? p.type === "3d_print" : p.type !== "3d_print"
   );
 
-  const q = $(`#search${idSuffix}`).value.toLowerCase().trim();
+  const searchEl = $(`#search${idSuffix}`);
+  const q = searchEl ? searchEl.value.toLowerCase().trim() : "";
   if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
 
-  const filter = $(`#filter-profit${idSuffix}`).value;
+  const filterEl = $(`#filter-profit${idSuffix}`);
+  const filter = filterEl ? filterEl.value : "all";
   list = list.filter((p) => {
     const c = calcProduct(p);
     if (filter === "positive") return c.totalProfit > 0;
@@ -1672,7 +1679,8 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
     return true;
   });
 
-  const sort = $(`#sort${idSuffix}`).value;
+  const sortEl = $(`#sort${idSuffix}`);
+  const sort = sortEl ? sortEl.value : "recent";
   list.sort((a, b) => {
     const ca = calcProduct(a);
     const cb = calcProduct(b);
@@ -1692,7 +1700,10 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
 // ==============================================================
 function render() {
   renderCatalog("resale", "", "#catalog", "#empty-catalog");
-  renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
+  // Só renderiza catálogo 3D se a view existir no DOM
+  if ($("#catalog-3d")) {
+    renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
+  }
   renderDashboard();
   if (currentView === "historico") {
     renderHistoryView();

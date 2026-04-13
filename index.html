@@ -74,9 +74,15 @@
       <a href="#produtos" class="nav-link" data-view="produtos">
         <span class="icon">📦</span> Produto
       </a>
+      <!--
+        Página Impressão 3D — OCULTA TEMPORARIAMENTE
+        Para reativar: descomente o bloco abaixo.
+      -->
+      <!--
       <a href="#impressao3d" class="nav-link" data-view="impressao3d">
         <span class="icon">🖨️</span> Impressão 3D
       </a>
+      -->
       <a href="#historico" class="nav-link" data-view="historico">
         <span class="icon">📜</span> Histórico
       </a>
@@ -194,9 +200,15 @@
     </section>
 
     <!-- ============ IMPRESSÃO 3D VIEW ============ -->
+    <!--
+      Página Impressão 3D — OCULTA TEMPORARIAMENTE
+      Para reativar: descomente o nav-link acima E este bloco.
+      Toda a lógica 3D (calc, formulário, modais) continua intacta em js/.
+    -->
+    <!--
     <section id="view-impressao3d" class="view">
       <div class="filters">
-        <input type="search" id="search-3d" placeholder="🔎 Buscar produto 3D..." />
+        <input type="search" id="search-3d" placeholder="Buscar produto 3D..." />
         <select id="sort-3d">
           <option value="recent">Mais recentes</option>
           <option value="profit-desc">Maior lucro total</option>
@@ -207,17 +219,16 @@
         <select id="filter-profit-3d">
           <option value="all">Todos os lucros</option>
           <option value="positive">Apenas lucrativos</option>
-          <option value="high">Alto lucro (&gt; 50%)</option>
-          <option value="loss">Prejuízo</option>
+          <option value="high">Alto lucro (> 50%)</option>
+          <option value="loss">Prejuizo</option>
         </select>
       </div>
-
       <div id="catalog-3d" class="catalog"></div>
       <p id="empty-catalog-3d" class="empty hidden">
         Nenhum produto de impressão 3D cadastrado.
-        Clique em <b>+ Novo Produto</b> e selecione <b>🖨️ Fabricação 3D</b>.
       </p>
     </section>
+    -->
 
     <!-- ============ HISTÓRICO VIEW ============ -->
     <section id="view-historico" class="view">
