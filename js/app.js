@@ -2743,10 +2743,6 @@ function pick(row, keys) {
     if (el) el.addEventListener("input", updateCalc3D);
   });
 
-  // Botão "Calcular" (visual — também recalcula)
-  const btnCalc = document.getElementById("btn-calc3d-calc");
-  if (btnCalc) btnCalc.addEventListener("click", updateCalc3D);
-
   // Botão "Limpar"
   const btnClear = document.getElementById("btn-calc3d-clear");
   if (btnClear) {
