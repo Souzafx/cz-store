@@ -353,6 +353,23 @@ nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .top-item .info b { display: block; font-size: 14px; color: #fff; }
 .top-item .info span { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
 .top-item .profit { font-weight: 800; color: var(--red-hot); font-size: 15px; }
+.top-item-delete {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.top-item-delete:hover {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
 
 .empty {
   color: var(--text-dim);
