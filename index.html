@@ -239,15 +239,32 @@
 
     <!-- ============ CÁLCULO 3D VIEW ============ -->
     <section id="view-calc3d" class="view">
-      <div class="calc3d-layout">
-        <!-- COLUNA ESQUERDA — inputs -->
-        <div class="calc3d-inputs">
 
-          <!-- Bloco 1: Filamento -->
+      <!-- Resumo rápido no topo -->
+      <div class="calc3d-summary">
+        <div class="calc3d-summary-card">
+          <small>Custo Total</small>
+          <div class="val cost" id="s3d-cost">R$ 0,00</div>
+        </div>
+        <div class="calc3d-summary-card">
+          <small>Preço Sugerido</small>
+          <div class="val price" id="s3d-price">R$ 0,00</div>
+        </div>
+        <div class="calc3d-summary-card">
+          <small>Lucro Estimado</small>
+          <div class="val profit" id="s3d-profit">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="calc3d-layout">
+        <!-- COLUNA ESQUERDA — inputs em grid compacta -->
+        <div class="calc3d-grid">
+
+          <!-- Filamento -->
           <div class="calc3d-card">
-            <h4 class="calc3d-card-title">🧵 Filamento</h4>
+            <h4 class="calc3d-card-title"><span class="icon">🧵</span> Filamento</h4>
             <div class="calc3d-field">
-              <label>Preço do quilo do filamento</label>
+              <label>Preço do kg</label>
               <div class="calc3d-input-row">
                 <span class="calc3d-prefix">R$</span>
                 <input type="number" id="c3d-filament-price" step="0.01" min="0" placeholder="54.00" />
@@ -255,75 +272,67 @@
             </div>
           </div>
 
-          <!-- Bloco 2: Fatiador / Impressão -->
+          <!-- Energia -->
           <div class="calc3d-card">
-            <h4 class="calc3d-card-title">🖨️ Fatiador</h4>
+            <h4 class="calc3d-card-title"><span class="icon">⚡</span> Energia</h4>
             <div class="calc3d-field">
-              <label>Quantidade de material usado</label>
-              <div class="calc3d-input-row">
-                <input type="number" id="c3d-grams" step="0.1" min="0" placeholder="230" />
-                <span class="calc3d-suffix">gramas</span>
-              </div>
-            </div>
-            <div class="calc3d-field">
-              <label>Duração da impressão</label>
-              <div class="calc3d-input-row">
-                <input type="text" id="c3d-duration" placeholder="7:30" inputmode="numeric" />
-                <span class="calc3d-suffix">h:min</span>
-              </div>
-              <small class="calc3d-hint">
-                Digite no formato horas:minutos. Ex: 7:30 = 7 horas e 30 minutos
-              </small>
-            </div>
-          </div>
-
-          <!-- Bloco 3: Energia -->
-          <div class="calc3d-card">
-            <h4 class="calc3d-card-title">⚡ Energia</h4>
-            <div class="calc3d-field">
-              <label>Taxa de energia da distribuidora</label>
+              <label>Tarifa (R$/kWh)</label>
               <div class="calc3d-input-row">
                 <span class="calc3d-prefix">R$</span>
                 <input type="number" id="c3d-energy-price" step="0.01" min="0" placeholder="0.96" />
-                <span class="calc3d-suffix">por kWh</span>
               </div>
             </div>
             <div class="calc3d-field">
-              <label>Consumo médio da sua impressora 3D</label>
+              <label>Consumo da impressora</label>
               <div class="calc3d-input-row">
                 <input type="number" id="c3d-printer-watts" step="1" min="0" placeholder="200" />
-                <span class="calc3d-suffix">Watts</span>
+                <span class="calc3d-suffix">W</span>
               </div>
-              <small class="calc3d-hint">
-                Exemplos: Ender 3 = 110W &bull; Prusa i3 MK3 = 180W &bull; Artillery = 350W
-              </small>
+              <small class="calc3d-hint">Ender 3 = 110W / Prusa = 180W / Artillery = 350W</small>
             </div>
           </div>
 
-          <!-- Bloco 4: Lucro -->
+          <!-- Fatiador -->
           <div class="calc3d-card">
-            <h4 class="calc3d-card-title">💰 Lucro</h4>
+            <h4 class="calc3d-card-title"><span class="icon">🖨️</span> Fatiador</h4>
             <div class="calc3d-field">
-              <label>Margem de lucro desejada</label>
+              <label>Material usado</label>
+              <div class="calc3d-input-row">
+                <input type="number" id="c3d-grams" step="0.1" min="0" placeholder="230" />
+                <span class="calc3d-suffix">g</span>
+              </div>
+            </div>
+            <div class="calc3d-field-row">
+              <div class="calc3d-field">
+                <label>Horas</label>
+                <input type="number" id="c3d-hours" min="0" value="0" placeholder="7" />
+              </div>
+              <div class="calc3d-field">
+                <label>Minutos</label>
+                <input type="number" id="c3d-minutes" min="0" max="59" value="0" placeholder="30" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Lucro -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title"><span class="icon">💰</span> Lucro</h4>
+            <div class="calc3d-field">
+              <label>Margem desejada</label>
               <div class="calc3d-input-row">
                 <input type="number" id="c3d-profit-margin" step="1" min="0" value="100" />
                 <span class="calc3d-suffix">%</span>
               </div>
               <small class="calc3d-hint">
-                Quanto de lucro escolher? Os custos diretos da impressão 3D costumam
-                ser baixos. Para refletir adequadamente o tempo de produção,
-                acabamento e manutenção da máquina, margens de 100% a 500% são comuns.
+                Custos diretos de impressão 3D costumam ser baixos.
+                Margens de 100% a 500% são comuns no mercado.
               </small>
             </div>
           </div>
 
-          <!-- Bloco 5: Item adicional -->
-          <div class="calc3d-card">
-            <h4 class="calc3d-card-title">🔩 Item adicional (opcional)</h4>
-            <small class="calc3d-hint" style="margin-bottom:14px;display:block">
-              Ex: lâmpada, imã, parafuso, cabo, LED, bateria, embalagem especial.
-              Deixe vazio se não houver.
-            </small>
+          <!-- Item adicional — ocupa largura total -->
+          <div class="calc3d-card full">
+            <h4 class="calc3d-card-title"><span class="icon">📦</span> Item adicional <span style="color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none;font-size:10px">(opcional)</span></h4>
             <div class="calc3d-field-row">
               <div class="calc3d-field">
                 <label>Nome do item</label>
@@ -339,68 +348,71 @@
             </div>
           </div>
 
-          <!-- Botão -->
-          <div class="calc3d-actions">
+          <!-- Ações — largura total -->
+          <div class="calc3d-actions full">
+            <button type="button" class="btn btn-ghost" id="btn-calc3d-save-defaults">
+              Salvar como padrão
+            </button>
             <button type="button" class="btn btn-ghost" id="btn-calc3d-clear">
-              Limpar campos
+              Limpar
             </button>
           </div>
         </div>
 
-        <!-- COLUNA DIREITA — resultados -->
+        <!-- COLUNA DIREITA — resultados sticky -->
         <div class="calc3d-results-wrap">
           <div class="calc3d-results" id="calc3d-results">
-            <h4 class="calc3d-card-title results-title">📊 Resultados</h4>
+            <h4 class="calc3d-card-title results-title"><span class="icon">📊</span> Resultados</h4>
 
             <div class="calc3d-result-group">
               <h5>Produção</h5>
               <div class="calc3d-result-row">
-                <span>Consumo de filamento</span>
-                <b id="r3d-filament">R$ 0,00</b>
+                <span>Filamento</span>
+                <b class="val-cost" id="r3d-filament">R$ 0,00</b>
               </div>
               <div class="calc3d-result-row">
-                <span>Consumo de energia elétrica</span>
-                <b id="r3d-energy">R$ 0,00</b>
+                <span>Energia elétrica</span>
+                <b class="val-cost" id="r3d-energy">R$ 0,00</b>
               </div>
               <div class="calc3d-result-row highlight">
-                <span>Custo base da peça</span>
-                <b id="r3d-base">R$ 0,00</b>
+                <span>Custo base</span>
+                <b class="val-cost" id="r3d-base">R$ 0,00</b>
               </div>
             </div>
 
-            <div class="calc3d-result-group" id="r3d-extra-group">
+            <div class="calc3d-result-group" id="r3d-extra-group" style="display:none">
               <h5>Adicional</h5>
               <div class="calc3d-result-row">
-                <span id="r3d-extra-label">Item adicional</span>
-                <b id="r3d-extra-val">R$ 0,00</b>
+                <span id="r3d-extra-label">Item</span>
+                <b class="val-cost" id="r3d-extra-val">R$ 0,00</b>
               </div>
             </div>
 
             <div class="calc3d-result-group">
               <h5>Total</h5>
               <div class="calc3d-result-row big">
-                <span>Custo total final</span>
-                <b id="r3d-total">R$ 0,00</b>
+                <span>Custo final</span>
+                <b class="val-cost" id="r3d-total">R$ 0,00</b>
               </div>
               <div class="calc3d-result-row">
                 <span>Custo por grama</span>
-                <b id="r3d-per-gram">R$ 0,00</b>
+                <b class="val-neutral" id="r3d-per-gram">R$ 0,00</b>
               </div>
             </div>
 
-            <div class="calc3d-result-group profit-group">
+            <div class="calc3d-result-group">
               <h5>Venda</h5>
               <div class="calc3d-result-row">
-                <span>Margem de lucro</span>
-                <b id="r3d-margin-label">100%</b>
+                <span>Margem</span>
+                <b class="val-neutral" id="r3d-margin-label">100%</b>
               </div>
               <div class="calc3d-result-row big suggested">
-                <span>Preço sugerido de venda</span>
+                <span>Preço sugerido</span>
                 <b id="r3d-suggested">R$ 0,00</b>
               </div>
               <div class="calc3d-result-row big profit">
                 <span>Lucro estimado</span>
-                <b id="r3d-profit">R$ 0,00</b>
+                <b class="val-profit" id="r3d-profit">R$ 0,00</b>
               </div>
             </div>
           </div>

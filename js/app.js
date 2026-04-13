@@ -2749,14 +2749,16 @@ function pick(row, keys) {
 // CALCULADORA 3D (página dedicada)
 // ==============================================================
 (function initCalc3D() {
-  const ids = [
-    "c3d-filament-price", "c3d-grams", "c3d-duration",
+  const STORAGE_KEY = "cz_calc3d_defaults";
+
+  const inputIds = [
+    "c3d-filament-price", "c3d-grams", "c3d-hours", "c3d-minutes",
     "c3d-energy-price", "c3d-printer-watts", "c3d-profit-margin",
     "c3d-extra-cost",
   ];
 
-  // Cálculo em tempo real (cada campo dispara recalcular)
-  ids.forEach((id) => {
+  // Cálculo em tempo real
+  inputIds.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("input", updateCalc3D);
   });
@@ -2765,12 +2767,9 @@ function pick(row, keys) {
   const btnClear = document.getElementById("btn-calc3d-clear");
   if (btnClear) {
     btnClear.addEventListener("click", () => {
-      ids.forEach((id) => {
+      inputIds.forEach((id) => {
         const el = document.getElementById(id);
-        if (el) {
-          if (id === "c3d-profit-margin") el.value = 100;
-          else el.value = "";
-        }
+        if (el) el.value = (id === "c3d-profit-margin") ? 100 : "";
       });
       const nameEl = document.getElementById("c3d-extra-name");
       if (nameEl) nameEl.value = "";
@@ -2778,82 +2777,82 @@ function pick(row, keys) {
     });
   }
 
+  // Botão "Salvar como padrão"
+  const btnSave = document.getElementById("btn-calc3d-save-defaults");
+  if (btnSave) {
+    btnSave.addEventListener("click", () => {
+      const defaults = {};
+      ["c3d-filament-price", "c3d-energy-price", "c3d-printer-watts", "c3d-profit-margin"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.value) defaults[id] = el.value;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+      alert("Configurações salvas como padrão!\n\nPróxima vez que abrir a calculadora, esses valores já estarão preenchidos.");
+    });
+  }
+
+  // Carregar padrão salvos no boot
+  function loadDefaults() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const defaults = JSON.parse(raw);
+      Object.entries(defaults).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && !el.value) el.value = val;
+      });
+    } catch (_) {}
+  }
+  loadDefaults();
+
   function updateCalc3D() {
-    // Leitura dos inputs
     const filPrice = parseFloat(document.getElementById("c3d-filament-price")?.value) || 0;
     const grams = parseFloat(document.getElementById("c3d-grams")?.value) || 0;
-
-    // Parse do campo unificado de duração (aceita "7:30", "7.5", "7,5" ou "7")
-    const durationRaw = (document.getElementById("c3d-duration")?.value || "").trim();
-    let hours = 0, minutes = 0;
-    if (durationRaw.includes(":")) {
-      const parts = durationRaw.split(":");
-      hours = parseInt(parts[0]) || 0;
-      minutes = parseInt(parts[1]) || 0;
-    } else {
-      // Aceita "7.5" ou "7,5" como 7h30
-      const decimal = parseFloat(durationRaw.replace(",", ".")) || 0;
-      hours = Math.floor(decimal);
-      minutes = Math.round((decimal - hours) * 60);
-    }
+    const hours = parseInt(document.getElementById("c3d-hours")?.value) || 0;
+    const minutes = parseInt(document.getElementById("c3d-minutes")?.value) || 0;
     const energyPrice = parseFloat(document.getElementById("c3d-energy-price")?.value) || 0;
     const printerW = parseFloat(document.getElementById("c3d-printer-watts")?.value) || 0;
     const profitMargin = parseFloat(document.getElementById("c3d-profit-margin")?.value) || 0;
     const extraName = (document.getElementById("c3d-extra-name")?.value || "").trim();
     const extraCost = parseFloat(document.getElementById("c3d-extra-cost")?.value) || 0;
 
-    // 1) Filamento
-    const filamentCost = (grams / 1000) * filPrice;
-
-    // 2) Tempo em horas decimais
     const totalHours = hours + minutes / 60;
-
-    // 3) Energia
+    const filamentCost = (grams / 1000) * filPrice;
     const consumptionKwh = (printerW / 1000) * totalHours;
     const energyCost = consumptionKwh * energyPrice;
-
-    // 4) Base
     const baseCost = filamentCost + energyCost;
-
-    // 5) Total
     const totalCost = baseCost + extraCost;
-
-    // 6) Por grama
     const perGram = grams > 0 ? totalCost / grams : 0;
-
-    // 7) Preço sugerido
     const suggestedPrice = totalCost * (1 + profitMargin / 100);
-
-    // 8) Lucro estimado
     const estimatedProfit = suggestedPrice - totalCost;
 
-    // Renderiza resultados
     const set = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
     };
 
+    // Resultados
     set("r3d-filament", BRL(filamentCost));
     set("r3d-energy", BRL(energyCost));
     set("r3d-base", BRL(baseCost));
 
-    // Adicional
     const extraGroup = document.getElementById("r3d-extra-group");
-    if (extraGroup) {
-      extraGroup.style.display = (extraName || extraCost > 0) ? "" : "none";
-    }
+    if (extraGroup) extraGroup.style.display = (extraName || extraCost > 0) ? "" : "none";
     set("r3d-extra-label", extraName || "Item adicional");
     set("r3d-extra-val", BRL(extraCost));
 
     set("r3d-total", BRL(totalCost));
     set("r3d-per-gram", BRL(perGram));
-
     set("r3d-margin-label", `${profitMargin}%`);
     set("r3d-suggested", BRL(suggestedPrice));
     set("r3d-profit", BRL(estimatedProfit));
+
+    // Resumo no topo
+    set("s3d-cost", BRL(totalCost));
+    set("s3d-price", BRL(suggestedPrice));
+    set("s3d-profit", BRL(estimatedProfit));
   }
 
-  // Inicializa com valores default
   updateCalc3D();
 })();
 
