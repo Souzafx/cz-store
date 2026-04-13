@@ -162,6 +162,7 @@ const VIEW_TITLES = {
   dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
   produtos:    ["Produtos", "Itens comprados prontos para revender"],
   impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
+  calc3d:      ["Cálculo 3D", "Calculadora de custo para impressão 3D"],
   historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
 };
 
@@ -184,6 +185,12 @@ function switchToView(view) {
   $$(".nav-link").forEach((l) => l.classList.remove("active"));
   const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
   if (activeLink) activeLink.classList.add("active");
+
+  // Mostra/esconde a view calc3d (se existir no DOM)
+  const calc3dView = document.getElementById("view-calc3d");
+  if (calc3dView) {
+    calc3dView.style.display = view === "calc3d" ? "" : "none";
+  }
 
   // Título e subtítulo no topo
   const [t, s] = VIEW_TITLES[view];
@@ -2719,6 +2726,110 @@ function pick(row, keys) {
   }
   return "";
 }
+
+// ==============================================================
+// CALCULADORA 3D (página dedicada)
+// ==============================================================
+(function initCalc3D() {
+  const ids = [
+    "c3d-filament-price", "c3d-grams", "c3d-hours", "c3d-minutes",
+    "c3d-energy-price", "c3d-printer-watts", "c3d-profit-margin",
+    "c3d-extra-cost",
+  ];
+
+  // Cálculo em tempo real (cada campo dispara recalcular)
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updateCalc3D);
+  });
+
+  // Botão "Calcular" (visual — também recalcula)
+  const btnCalc = document.getElementById("btn-calc3d-calc");
+  if (btnCalc) btnCalc.addEventListener("click", updateCalc3D);
+
+  // Botão "Limpar"
+  const btnClear = document.getElementById("btn-calc3d-clear");
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (el.type === "number") el.value = id === "c3d-profit-margin" ? 100 : "";
+          else el.value = "";
+        }
+      });
+      const nameEl = document.getElementById("c3d-extra-name");
+      if (nameEl) nameEl.value = "";
+      updateCalc3D();
+    });
+  }
+
+  function updateCalc3D() {
+    // Leitura dos inputs
+    const filPrice = parseFloat(document.getElementById("c3d-filament-price")?.value) || 0;
+    const grams = parseFloat(document.getElementById("c3d-grams")?.value) || 0;
+    const hours = parseInt(document.getElementById("c3d-hours")?.value) || 0;
+    const minutes = parseInt(document.getElementById("c3d-minutes")?.value) || 0;
+    const energyPrice = parseFloat(document.getElementById("c3d-energy-price")?.value) || 0;
+    const printerW = parseFloat(document.getElementById("c3d-printer-watts")?.value) || 0;
+    const profitMargin = parseFloat(document.getElementById("c3d-profit-margin")?.value) || 0;
+    const extraName = (document.getElementById("c3d-extra-name")?.value || "").trim();
+    const extraCost = parseFloat(document.getElementById("c3d-extra-cost")?.value) || 0;
+
+    // 1) Filamento
+    const filamentCost = (grams / 1000) * filPrice;
+
+    // 2) Tempo em horas decimais
+    const totalHours = hours + minutes / 60;
+
+    // 3) Energia
+    const consumptionKwh = (printerW / 1000) * totalHours;
+    const energyCost = consumptionKwh * energyPrice;
+
+    // 4) Base
+    const baseCost = filamentCost + energyCost;
+
+    // 5) Total
+    const totalCost = baseCost + extraCost;
+
+    // 6) Por grama
+    const perGram = grams > 0 ? totalCost / grams : 0;
+
+    // 7) Preço sugerido
+    const suggestedPrice = totalCost * (1 + profitMargin / 100);
+
+    // 8) Lucro estimado
+    const estimatedProfit = suggestedPrice - totalCost;
+
+    // Renderiza resultados
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    set("r3d-filament", BRL(filamentCost));
+    set("r3d-energy", BRL(energyCost));
+    set("r3d-base", BRL(baseCost));
+
+    // Adicional
+    const extraGroup = document.getElementById("r3d-extra-group");
+    if (extraGroup) {
+      extraGroup.style.display = (extraName || extraCost > 0) ? "" : "none";
+    }
+    set("r3d-extra-label", extraName || "Item adicional");
+    set("r3d-extra-val", BRL(extraCost));
+
+    set("r3d-total", BRL(totalCost));
+    set("r3d-per-gram", BRL(perGram));
+
+    set("r3d-margin-label", `${profitMargin}%`);
+    set("r3d-suggested", BRL(suggestedPrice));
+    set("r3d-profit", BRL(estimatedProfit));
+  }
+
+  // Inicializa com valores default
+  updateCalc3D();
+})();
 
 // ==============================================================
 // ATALHOS DE TECLADO

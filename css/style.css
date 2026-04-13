@@ -1844,6 +1844,190 @@ button.section-title.collapsible-toggle:hover {
   .details-photo-wrap { width: 100%; max-width: 260px; margin: 0 auto; }
 }
 
+/* ===================== CALCULADORA 3D ===================== */
+.calc3d-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 28px;
+  align-items: start;
+}
+.calc3d-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.calc3d-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--red);
+  box-shadow: 0 0 12px var(--red-glow);
+}
+.calc3d-card-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--red-hot);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 18px;
+}
+.calc3d-field { margin-bottom: 16px; }
+.calc3d-field:last-child { margin-bottom: 0; }
+.calc3d-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.calc3d-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.calc3d-input-row input {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+}
+.calc3d-input-row input:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.2);
+}
+.calc3d-prefix, .calc3d-suffix {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.calc3d-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.calc3d-field-row .calc3d-field input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+}
+.calc3d-field-row .calc3d-field input:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.2);
+}
+.calc3d-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  font-style: italic;
+}
+.calc3d-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+/* Resultados (coluna direita) */
+.calc3d-results-wrap {
+  position: sticky;
+  top: 32px;
+}
+.calc3d-results {
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-soft));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  border-left: 4px solid var(--red);
+  box-shadow: var(--shadow-red);
+}
+.calc3d-results .results-title {
+  color: var(--red-hot);
+  margin-bottom: 22px;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+.calc3d-result-group {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.calc3d-result-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.calc3d-result-group h5 {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.calc3d-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.calc3d-result-row span { color: var(--text-soft); }
+.calc3d-result-row b { color: #fff; font-weight: 700; font-size: 13px; }
+.calc3d-result-row.highlight {
+  padding: 10px 12px;
+  margin: 6px -12px 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.calc3d-result-row.highlight b { color: var(--red-hot); }
+.calc3d-result-row.big {
+  padding: 10px 12px;
+  margin: 4px -12px;
+  border-radius: 8px;
+}
+.calc3d-result-row.big b { font-size: 18px; }
+.calc3d-result-row.big.suggested {
+  background: linear-gradient(135deg, rgba(229, 9, 20, 0.15), rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--border-hot);
+}
+.calc3d-result-row.big.suggested b {
+  color: var(--red-hot);
+  text-shadow: 0 0 14px var(--red-glow);
+  font-size: 22px;
+}
+.calc3d-result-row.big.profit { }
+.calc3d-result-row.big.profit b { color: #22c55e; font-size: 18px; }
+.profit-group h5 { color: #22c55e; }
+
+@media (max-width: 900px) {
+  .calc3d-layout { grid-template-columns: 1fr; }
+  .calc3d-results-wrap { position: static; }
+}
+
 /* Regras de visibilidade de view estão INLINE no <head> de index.html
    (para rodar antes do primeiro paint). Não duplicar aqui. */
 
