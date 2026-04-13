@@ -162,6 +162,7 @@ const VIEW_TITLES = {
   dashboard:   ["Dashboard", "Resumo financeiro da sua loja"],
   produtos:    ["Produtos", "Itens comprados prontos para revender"],
   impressao3d: ["Impressão 3D", "Produtos fabricados por você"],
+  calc3d:      ["Cálculo 3D", "Calculadora de custo para impressão 3D"],
   historico:   ["Histórico de Compras", "Linha do tempo de todas as compras"],
 };
 
@@ -171,6 +172,8 @@ const VIEW_TITLES = {
  */
 function switchToView(view) {
   if (!VIEW_TITLES[view]) view = "dashboard";
+  // Se a view não existe no DOM (ex: impressao3d comentada), vai pro dashboard
+  if (view !== "dashboard" && !document.getElementById("view-" + view)) view = "dashboard";
   currentView = view;
 
   // A visibilidade é controlada pelo <style> inline no <head>, que
@@ -182,6 +185,12 @@ function switchToView(view) {
   $$(".nav-link").forEach((l) => l.classList.remove("active"));
   const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
   if (activeLink) activeLink.classList.add("active");
+
+  // Mostra/esconde a view calc3d (se existir no DOM)
+  const calc3dView = document.getElementById("view-calc3d");
+  if (calc3dView) {
+    calc3dView.style.display = view === "calc3d" ? "" : "none";
+  }
 
   // Título e subtítulo no topo
   const [t, s] = VIEW_TITLES[view];
@@ -272,8 +281,9 @@ function openModal(product = null, defaultType = "resale") {
   ];
   const firstProductionFields = [
     "f-fprod-date", "f-fprod-qty", "f-fprod-material", "f-fprod-weight",
-    "f-fprod-filament-cost", "f-fprod-hour-cost",
-    "f-fprod-hours", "f-fprod-minutes", "f-fprod-extras", "f-fprod-note",
+    "f-fprod-filament-cost", "f-fprod-printer-watts", "f-fprod-energy-price",
+    "f-fprod-hours", "f-fprod-minutes", "f-fprod-note",
+    "f-fprod-extra-item-name", "f-fprod-extra-item-cost",
   ];
   const setDisabled = (ids, flag) => {
     ids.forEach((id) => {
@@ -326,11 +336,13 @@ function openModal(product = null, defaultType = "resale") {
       $("#f-fprod-material").value = "PLA";
       $("#f-fprod-weight").value = "";
       $("#f-fprod-filament-cost").value = "";
-      $("#f-fprod-hour-cost").value = "";
+      $("#f-fprod-printer-watts").value = "";
+      $("#f-fprod-energy-price").value = "";
       $("#f-fprod-hours").value = 0;
       $("#f-fprod-minutes").value = 0;
-      $("#f-fprod-extras").value = "";
       $("#f-fprod-note").value = "";
+      $("#f-fprod-extra-item-name").value = "";
+      $("#f-fprod-extra-item-cost").value = "";
     }
   }
 
@@ -993,8 +1005,9 @@ const LIVE_CALC_FIELDS = [
   "f-fp-qty", "f-fp-cost-product", "f-fp-cost-tax",
   // 3d print
   "f-fprod-qty", "f-fprod-weight", "f-fprod-filament-cost",
-  "f-fprod-hour-cost", "f-fprod-hours", "f-fprod-minutes",
-  "f-fprod-extras",
+  "f-fprod-printer-watts", "f-fprod-energy-price",
+  "f-fprod-hours", "f-fprod-minutes",
+  "f-fprod-extra-item-cost",
 ];
 LIVE_CALC_FIELDS.forEach((id) => {
   const el = document.getElementById(id);
@@ -1037,10 +1050,12 @@ function buildFormProduct() {
           material: $("#f-fprod-material").value,
           weightGrams: $("#f-fprod-weight").value,
           filamentCostPerKg: $("#f-fprod-filament-cost").value,
-          hourCost: $("#f-fprod-hour-cost").value,
+          printerWatts: $("#f-fprod-printer-watts").value,
+          energyCostPerKwh: $("#f-fprod-energy-price").value,
           printHours: $("#f-fprod-hours").value,
           printMinutes: $("#f-fprod-minutes").value,
-          extraCosts: $("#f-fprod-extras").value,
+          extraItemName: $("#f-fprod-extra-item-name").value,
+          extraItemCost: $("#f-fprod-extra-item-cost").value,
         },
       ],
       purchases: [],
@@ -1121,19 +1136,25 @@ function renderLiveCalcResale(c, target) {
 }
 
 function renderLiveCalc3D(c, target) {
-  // Custos de produção
+  // Produção
   $("#c3-filament").textContent = BRL(c.totalFilamentCost || 0);
-  $("#c3-time").textContent = BRL(c.totalTimeCost || 0);
-  $("#c3-extras").textContent = BRL(c.totalExtras || 0);
-  $("#c3-unit-cost").textContent = BRL(c.costUnit);
+  $("#c3-energy").textContent = BRL(c.totalEnergyCost || 0);
+  $("#c3-base").textContent = BRL(c.totalBaseCost || 0);
 
-  // Lote
+  // Adicional
+  // Pega o nome do item adicional do formulário se em modo criação
+  const extraName = $("#f-fprod-extra-item-name")?.value?.trim() || "—";
+  $("#c3-extra-name").textContent = extraName;
+  $("#c3-extra-cost").textContent = BRL(c.totalExtraItemCost || 0);
+
+  // Total
+  $("#c3-unit-cost").textContent = BRL(c.costUnit);
   $("#c3-qty").textContent = `${c.qtyBought} un`;
-  $("#c3-total-weight").textContent = `${(c.totalWeight || 0).toFixed(1)} g`;
-  $("#c3-total-time").textContent = formatPrintTime(c.totalMinutes || 0);
   $("#c3-batch-cost").textContent = BRL(c.totalInvested);
 
-  // Resultado
+  // Resultado (com preço de venda atual, se houver)
+  const price = Number($("#f-price").value) || 0;
+  $("#c3-sell-price").textContent = BRL(price);
   const netEl = $("#c3-net");
   const profitUnitEl = $("#c3-profit-unit");
   const profitTotalEl = $("#c3-profit-total");
@@ -1154,6 +1175,7 @@ function renderLiveCalc3D(c, target) {
   // Sugestão
   $("#c3-target-label").textContent = `${target}%`;
   $("#c3-suggested").textContent = BRL(c.suggestedPrice);
+  $("#c3-estimated-profit").textContent = BRL(c.suggestedPrice > 0 ? c.suggestedPrice - c.suggestedPrice * (Number($("#f-fee").value) || 0) / 100 - c.costUnit : 0);
 }
 
 // Aplicar preço sugerido — REVENDA
@@ -1300,10 +1322,12 @@ $("#product-form").addEventListener("submit", (e) => {
         material: $("#f-fprod-material").value || "PLA",
         weightGrams: parseFloat($("#f-fprod-weight").value) || 0,
         filamentCostPerKg: parseFloat($("#f-fprod-filament-cost").value) || 0,
-        hourCost: parseFloat($("#f-fprod-hour-cost").value) || 0,
+        printerWatts: parseFloat($("#f-fprod-printer-watts").value) || 0,
+        energyCostPerKwh: parseFloat($("#f-fprod-energy-price").value) || 0,
         printHours: parseInt($("#f-fprod-hours").value) || 0,
         printMinutes: parseInt($("#f-fprod-minutes").value) || 0,
-        extraCosts: parseFloat($("#f-fprod-extras").value) || 0,
+        extraItemName: $("#f-fprod-extra-item-name").value.trim(),
+        extraItemCost: parseFloat($("#f-fprod-extra-item-cost").value) || 0,
         note: $("#f-fprod-note").value.trim(),
       };
       Storage.add({
@@ -1521,10 +1545,12 @@ function openProductionModal(productId, batch = null) {
   $("#f-pr-material").value = batch?.material || "PLA";
   $("#f-pr-weight").value = batch?.weightGrams ?? "";
   $("#f-pr-filament-cost").value = batch?.filamentCostPerKg ?? "";
-  $("#f-pr-hour-cost").value = batch?.hourCost ?? "";
+  $("#f-pr-printer-watts").value = batch?.printerWatts ?? "";
+  $("#f-pr-energy-price").value = batch?.energyCostPerKwh ?? "";
   $("#f-pr-hours").value = batch?.printHours ?? 0;
   $("#f-pr-minutes").value = batch?.printMinutes ?? 0;
-  $("#f-pr-extras").value = batch?.extraCosts ?? "";
+  $("#f-pr-extra-item-name").value = batch?.extraItemName ?? "";
+  $("#f-pr-extra-item-cost").value = batch?.extraItemCost ?? "";
   $("#f-pr-note").value = batch?.note || "";
 
   updateProductionLiveCalc();
@@ -1540,8 +1566,8 @@ function closeProductionModal() {
 $("#production-modal-close").addEventListener("click", closeProductionModal);
 $("#btn-pr-cancel").addEventListener("click", closeProductionModal);
 
-["f-pr-qty", "f-pr-weight", "f-pr-filament-cost", "f-pr-hour-cost",
- "f-pr-hours", "f-pr-minutes", "f-pr-extras"].forEach((id) => {
+["f-pr-qty", "f-pr-weight", "f-pr-filament-cost", "f-pr-printer-watts",
+ "f-pr-energy-price", "f-pr-hours", "f-pr-minutes", "f-pr-extra-item-cost"].forEach((id) => {
   document.getElementById(id).addEventListener("input", updateProductionLiveCalc);
 });
 
@@ -1550,11 +1576,17 @@ function updateProductionLiveCalc() {
     quantity: $("#f-pr-qty").value,
     weightGrams: $("#f-pr-weight").value,
     filamentCostPerKg: $("#f-pr-filament-cost").value,
-    hourCost: $("#f-pr-hour-cost").value,
+    printerWatts: $("#f-pr-printer-watts").value,
+    energyCostPerKwh: $("#f-pr-energy-price").value,
     printHours: $("#f-pr-hours").value,
     printMinutes: $("#f-pr-minutes").value,
-    extraCosts: $("#f-pr-extras").value,
+    extraItemName: $("#f-pr-extra-item-name").value,
+    extraItemCost: $("#f-pr-extra-item-cost").value,
   });
+  $("#pr-filament").textContent = BRL(c.filamentCost);
+  $("#pr-energy").textContent = BRL(c.energyCost);
+  $("#pr-base").textContent = BRL(c.baseCost);
+  $("#pr-extra").textContent = BRL(c.extraItemCost);
   $("#pr-unit").textContent = BRL(c.costUnit);
   $("#pr-total").textContent = BRL(c.costTotal);
 }
@@ -1580,10 +1612,12 @@ $("#production-form").addEventListener("submit", (e) => {
     material: $("#f-pr-material").value || "PLA",
     weightGrams: parseFloat($("#f-pr-weight").value) || 0,
     filamentCostPerKg: parseFloat($("#f-pr-filament-cost").value) || 0,
-    hourCost: parseFloat($("#f-pr-hour-cost").value) || 0,
+    printerWatts: parseFloat($("#f-pr-printer-watts").value) || 0,
+    energyCostPerKwh: parseFloat($("#f-pr-energy-price").value) || 0,
     printHours: parseInt($("#f-pr-hours").value) || 0,
     printMinutes: parseInt($("#f-pr-minutes").value) || 0,
-    extraCosts: parseFloat($("#f-pr-extras").value) || 0,
+    extraItemName: $("#f-pr-extra-item-name").value.trim(),
+    extraItemCost: parseFloat($("#f-pr-extra-item-cost").value) || 0,
     note: $("#f-pr-note").value.trim(),
   };
 
@@ -1614,10 +1648,13 @@ $("#production-form").addEventListener("submit", (e) => {
   $(sel).addEventListener("input", render);
   $(sel).addEventListener("change", render);
 });
-// Impressão 3D — inputs com sufixo "-3d"
+// Impressão 3D — inputs com sufixo "-3d" (se a view existir no DOM)
 ["#search-3d", "#sort-3d", "#filter-profit-3d"].forEach((sel) => {
-  $(sel).addEventListener("input", render);
-  $(sel).addEventListener("change", render);
+  const el = $(sel);
+  if (el) {
+    el.addEventListener("input", render);
+    el.addEventListener("change", render);
+  }
 });
 
 /**
@@ -1635,10 +1672,12 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
     productType === "3d_print" ? p.type === "3d_print" : p.type !== "3d_print"
   );
 
-  const q = $(`#search${idSuffix}`).value.toLowerCase().trim();
+  const searchEl = $(`#search${idSuffix}`);
+  const q = searchEl ? searchEl.value.toLowerCase().trim() : "";
   if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
 
-  const filter = $(`#filter-profit${idSuffix}`).value;
+  const filterEl = $(`#filter-profit${idSuffix}`);
+  const filter = filterEl ? filterEl.value : "all";
   list = list.filter((p) => {
     const c = calcProduct(p);
     if (filter === "positive") return c.totalProfit > 0;
@@ -1647,7 +1686,8 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
     return true;
   });
 
-  const sort = $(`#sort${idSuffix}`).value;
+  const sortEl = $(`#sort${idSuffix}`);
+  const sort = sortEl ? sortEl.value : "recent";
   list.sort((a, b) => {
     const ca = calcProduct(a);
     const cb = calcProduct(b);
@@ -1667,7 +1707,10 @@ function getFilteredProducts(productType = "resale", idSuffix = "") {
 // ==============================================================
 function render() {
   renderCatalog("resale", "", "#catalog", "#empty-catalog");
-  renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
+  // Só renderiza catálogo 3D se a view existir no DOM
+  if ($("#catalog-3d")) {
+    renderCatalog("3d_print", "-3d", "#catalog-3d", "#empty-catalog-3d");
+  }
   renderDashboard();
   if (currentView === "historico") {
     renderHistoryView();
@@ -1724,13 +1767,13 @@ function renderCatalog(productType = "resale", idSuffix = "", catalogSel = "#cat
     if (is3D) {
       specsHtml = `
         <div class="product-specs">
-          <div class="spec"><span>Invest. total</span><b>${BRL(c.totalInvested)}</b></div>
           <div class="spec"><span>Filamento</span><b>${BRL(c.totalFilamentCost || 0)}</b></div>
-          <div class="spec"><span>Tempo</span><b>${BRL(c.totalTimeCost || 0)}</b></div>
-          <div class="spec"><span>Extras</span><b>${BRL(c.totalExtras || 0)}</b></div>
+          <div class="spec"><span>Energia</span><b>${BRL(c.totalEnergyCost || 0)}</b></div>
+          <div class="spec"><span>Base</span><b>${BRL(c.totalBaseCost || 0)}</b></div>
+          <div class="spec"><span>Adicional</span><b>${BRL(c.totalExtraItemCost || 0)}</b></div>
           <div class="spec"><span>Custo/un</span><b>${BRL(c.costUnit)}</b></div>
-          <div class="spec"><span>Peso médio</span><b>${(c.avgWeightPerUnit || 0).toFixed(1)}g</b></div>
-          <div class="spec"><span>Tempo total</span><b>${formatPrintTime(c.totalMinutes || 0)}</b></div>
+          <div class="spec"><span>Peso</span><b>${(c.avgWeightPerUnit || 0).toFixed(0)}g</b></div>
+          <div class="spec"><span>Tempo</span><b>${formatPrintTime(c.totalMinutes || 0)}</b></div>
           <div class="spec"><span>Produzidas</span><b>${c.qtyBought} un</b></div>
           <div class="spec"><span>Preço venda</span><b>${BRL(p.price)}</b></div>
           <div class="spec"><span>Taxa</span><b>${PCT(p.fee)}</b></div>
@@ -2683,6 +2726,110 @@ function pick(row, keys) {
   }
   return "";
 }
+
+// ==============================================================
+// CALCULADORA 3D (página dedicada)
+// ==============================================================
+(function initCalc3D() {
+  const ids = [
+    "c3d-filament-price", "c3d-grams", "c3d-hours", "c3d-minutes",
+    "c3d-energy-price", "c3d-printer-watts", "c3d-profit-margin",
+    "c3d-extra-cost",
+  ];
+
+  // Cálculo em tempo real (cada campo dispara recalcular)
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", updateCalc3D);
+  });
+
+  // Botão "Calcular" (visual — também recalcula)
+  const btnCalc = document.getElementById("btn-calc3d-calc");
+  if (btnCalc) btnCalc.addEventListener("click", updateCalc3D);
+
+  // Botão "Limpar"
+  const btnClear = document.getElementById("btn-calc3d-clear");
+  if (btnClear) {
+    btnClear.addEventListener("click", () => {
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (el.type === "number") el.value = id === "c3d-profit-margin" ? 100 : "";
+          else el.value = "";
+        }
+      });
+      const nameEl = document.getElementById("c3d-extra-name");
+      if (nameEl) nameEl.value = "";
+      updateCalc3D();
+    });
+  }
+
+  function updateCalc3D() {
+    // Leitura dos inputs
+    const filPrice = parseFloat(document.getElementById("c3d-filament-price")?.value) || 0;
+    const grams = parseFloat(document.getElementById("c3d-grams")?.value) || 0;
+    const hours = parseInt(document.getElementById("c3d-hours")?.value) || 0;
+    const minutes = parseInt(document.getElementById("c3d-minutes")?.value) || 0;
+    const energyPrice = parseFloat(document.getElementById("c3d-energy-price")?.value) || 0;
+    const printerW = parseFloat(document.getElementById("c3d-printer-watts")?.value) || 0;
+    const profitMargin = parseFloat(document.getElementById("c3d-profit-margin")?.value) || 0;
+    const extraName = (document.getElementById("c3d-extra-name")?.value || "").trim();
+    const extraCost = parseFloat(document.getElementById("c3d-extra-cost")?.value) || 0;
+
+    // 1) Filamento
+    const filamentCost = (grams / 1000) * filPrice;
+
+    // 2) Tempo em horas decimais
+    const totalHours = hours + minutes / 60;
+
+    // 3) Energia
+    const consumptionKwh = (printerW / 1000) * totalHours;
+    const energyCost = consumptionKwh * energyPrice;
+
+    // 4) Base
+    const baseCost = filamentCost + energyCost;
+
+    // 5) Total
+    const totalCost = baseCost + extraCost;
+
+    // 6) Por grama
+    const perGram = grams > 0 ? totalCost / grams : 0;
+
+    // 7) Preço sugerido
+    const suggestedPrice = totalCost * (1 + profitMargin / 100);
+
+    // 8) Lucro estimado
+    const estimatedProfit = suggestedPrice - totalCost;
+
+    // Renderiza resultados
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    set("r3d-filament", BRL(filamentCost));
+    set("r3d-energy", BRL(energyCost));
+    set("r3d-base", BRL(baseCost));
+
+    // Adicional
+    const extraGroup = document.getElementById("r3d-extra-group");
+    if (extraGroup) {
+      extraGroup.style.display = (extraName || extraCost > 0) ? "" : "none";
+    }
+    set("r3d-extra-label", extraName || "Item adicional");
+    set("r3d-extra-val", BRL(extraCost));
+
+    set("r3d-total", BRL(totalCost));
+    set("r3d-per-gram", BRL(perGram));
+
+    set("r3d-margin-label", `${profitMargin}%`);
+    set("r3d-suggested", BRL(suggestedPrice));
+    set("r3d-profit", BRL(estimatedProfit));
+  }
+
+  // Inicializa com valores default
+  updateCalc3D();
+})();
 
 // ==============================================================
 // ATALHOS DE TECLADO

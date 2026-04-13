@@ -21,11 +21,13 @@
     #view-dashboard,
     #view-produtos,
     #view-impressao3d,
+    #view-calc3d,
     #view-historico { display: none; }
 
     html[data-initial-view="dashboard"]   #view-dashboard,
     html[data-initial-view="produtos"]    #view-produtos,
     html[data-initial-view="impressao3d"] #view-impressao3d,
+    html[data-initial-view="calc3d"]      #view-calc3d,
     html[data-initial-view="historico"]   #view-historico { display: block; }
 
     /* (2) e (3) Título e subtítulo: ver script inline logo após os
@@ -38,6 +40,7 @@
     html[data-initial-view="dashboard"]   .nav-link[data-view="dashboard"],
     html[data-initial-view="produtos"]    .nav-link[data-view="produtos"],
     html[data-initial-view="impressao3d"] .nav-link[data-view="impressao3d"],
+    html[data-initial-view="calc3d"]      .nav-link[data-view="calc3d"],
     html[data-initial-view="historico"]   .nav-link[data-view="historico"] {
       background: linear-gradient(90deg, rgba(229, 9, 20, 0.22), transparent);
       color: #fff !important;
@@ -74,8 +77,17 @@
       <a href="#produtos" class="nav-link" data-view="produtos">
         <span class="icon">📦</span> Produto
       </a>
+      <!--
+        Página Impressão 3D — OCULTA TEMPORARIAMENTE
+        Para reativar: descomente o bloco abaixo.
+      -->
+      <!--
       <a href="#impressao3d" class="nav-link" data-view="impressao3d">
         <span class="icon">🖨️</span> Impressão 3D
+      </a>
+      -->
+      <a href="#calc3d" class="nav-link" data-view="calc3d">
+        <span class="icon">🧮</span> Cálculo 3D
       </a>
       <a href="#historico" class="nav-link" data-view="historico">
         <span class="icon">📜</span> Histórico
@@ -108,6 +120,7 @@
               dashboard:   ["Dashboard",             "Resumo financeiro da sua loja"],
               produtos:    ["Produtos",              "Itens comprados prontos para revender"],
               impressao3d: ["Impressão 3D",          "Produtos fabricados por você"],
+              calc3d:      ["Cálculo 3D",            "Calculadora de custo para impressão 3D"],
               historico:   ["Histórico de Compras",  "Linha do tempo de todas as compras"],
             };
             var t = map[v] || map.dashboard;
@@ -194,9 +207,15 @@
     </section>
 
     <!-- ============ IMPRESSÃO 3D VIEW ============ -->
+    <!--
+      Página Impressão 3D — OCULTA TEMPORARIAMENTE
+      Para reativar: descomente o nav-link acima E este bloco.
+      Toda a lógica 3D (calc, formulário, modais) continua intacta em js/.
+    -->
+    <!--
     <section id="view-impressao3d" class="view">
       <div class="filters">
-        <input type="search" id="search-3d" placeholder="🔎 Buscar produto 3D..." />
+        <input type="search" id="search-3d" placeholder="Buscar produto 3D..." />
         <select id="sort-3d">
           <option value="recent">Mais recentes</option>
           <option value="profit-desc">Maior lucro total</option>
@@ -207,16 +226,189 @@
         <select id="filter-profit-3d">
           <option value="all">Todos os lucros</option>
           <option value="positive">Apenas lucrativos</option>
-          <option value="high">Alto lucro (&gt; 50%)</option>
-          <option value="loss">Prejuízo</option>
+          <option value="high">Alto lucro (> 50%)</option>
+          <option value="loss">Prejuizo</option>
         </select>
       </div>
-
       <div id="catalog-3d" class="catalog"></div>
       <p id="empty-catalog-3d" class="empty hidden">
         Nenhum produto de impressão 3D cadastrado.
-        Clique em <b>+ Novo Produto</b> e selecione <b>🖨️ Fabricação 3D</b>.
       </p>
+    </section>
+    -->
+
+    <!-- ============ CÁLCULO 3D VIEW ============ -->
+    <section id="view-calc3d" class="view">
+      <div class="calc3d-layout">
+        <!-- COLUNA ESQUERDA — inputs -->
+        <div class="calc3d-inputs">
+
+          <!-- Bloco 1: Filamento -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title">🧵 Filamento</h4>
+            <div class="calc3d-field">
+              <label>Preço do quilo do filamento</label>
+              <div class="calc3d-input-row">
+                <span class="calc3d-prefix">R$</span>
+                <input type="number" id="c3d-filament-price" step="0.01" min="0" placeholder="54.00" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 2: Fatiador / Impressão -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title">🖨️ Fatiador</h4>
+            <div class="calc3d-field">
+              <label>Quantidade de material usado</label>
+              <div class="calc3d-input-row">
+                <input type="number" id="c3d-grams" step="0.1" min="0" placeholder="230" />
+                <span class="calc3d-suffix">gramas</span>
+              </div>
+            </div>
+            <div class="calc3d-field-row">
+              <div class="calc3d-field">
+                <label>Duração — horas</label>
+                <input type="number" id="c3d-hours" min="0" value="0" />
+              </div>
+              <div class="calc3d-field">
+                <label>Duração — minutos</label>
+                <input type="number" id="c3d-minutes" min="0" max="59" value="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 3: Energia -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title">⚡ Energia</h4>
+            <div class="calc3d-field">
+              <label>Taxa de energia da distribuidora</label>
+              <div class="calc3d-input-row">
+                <span class="calc3d-prefix">R$</span>
+                <input type="number" id="c3d-energy-price" step="0.01" min="0" placeholder="0.96" />
+                <span class="calc3d-suffix">por kWh</span>
+              </div>
+            </div>
+            <div class="calc3d-field">
+              <label>Consumo médio da sua impressora 3D</label>
+              <div class="calc3d-input-row">
+                <input type="number" id="c3d-printer-watts" step="1" min="0" placeholder="200" />
+                <span class="calc3d-suffix">Watts</span>
+              </div>
+              <small class="calc3d-hint">
+                Exemplos: Ender 3 = 110W &bull; Prusa i3 MK3 = 180W &bull; Artillery = 350W
+              </small>
+            </div>
+          </div>
+
+          <!-- Bloco 4: Lucro -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title">💰 Lucro</h4>
+            <div class="calc3d-field">
+              <label>Margem de lucro desejada</label>
+              <div class="calc3d-input-row">
+                <input type="number" id="c3d-profit-margin" step="1" min="0" value="100" />
+                <span class="calc3d-suffix">%</span>
+              </div>
+              <small class="calc3d-hint">
+                Quanto de lucro escolher? Os custos diretos da impressão 3D costumam
+                ser baixos. Para refletir adequadamente o tempo de produção,
+                acabamento e manutenção da máquina, margens de 100% a 500% são comuns.
+              </small>
+            </div>
+          </div>
+
+          <!-- Bloco 5: Item adicional -->
+          <div class="calc3d-card">
+            <h4 class="calc3d-card-title">🔩 Item adicional (opcional)</h4>
+            <small class="calc3d-hint" style="margin-bottom:14px;display:block">
+              Ex: lâmpada, imã, parafuso, cabo, LED, bateria, embalagem especial.
+              Deixe vazio se não houver.
+            </small>
+            <div class="calc3d-field-row">
+              <div class="calc3d-field">
+                <label>Nome do item</label>
+                <input type="text" id="c3d-extra-name" placeholder="Ex: Lâmpada LED" />
+              </div>
+              <div class="calc3d-field">
+                <label>Custo do item</label>
+                <div class="calc3d-input-row">
+                  <span class="calc3d-prefix">R$</span>
+                  <input type="number" id="c3d-extra-cost" step="0.01" min="0" placeholder="8.00" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botões -->
+          <div class="calc3d-actions">
+            <button type="button" class="btn btn-primary" id="btn-calc3d-calc">
+              Calcular
+            </button>
+            <button type="button" class="btn btn-ghost" id="btn-calc3d-clear">
+              Limpar
+            </button>
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA — resultados -->
+        <div class="calc3d-results-wrap">
+          <div class="calc3d-results" id="calc3d-results">
+            <h4 class="calc3d-card-title results-title">📊 Resultados</h4>
+
+            <div class="calc3d-result-group">
+              <h5>Produção</h5>
+              <div class="calc3d-result-row">
+                <span>Consumo de filamento</span>
+                <b id="r3d-filament">R$ 0,00</b>
+              </div>
+              <div class="calc3d-result-row">
+                <span>Consumo de energia elétrica</span>
+                <b id="r3d-energy">R$ 0,00</b>
+              </div>
+              <div class="calc3d-result-row highlight">
+                <span>Custo base da peça</span>
+                <b id="r3d-base">R$ 0,00</b>
+              </div>
+            </div>
+
+            <div class="calc3d-result-group" id="r3d-extra-group">
+              <h5>Adicional</h5>
+              <div class="calc3d-result-row">
+                <span id="r3d-extra-label">Item adicional</span>
+                <b id="r3d-extra-val">R$ 0,00</b>
+              </div>
+            </div>
+
+            <div class="calc3d-result-group">
+              <h5>Total</h5>
+              <div class="calc3d-result-row big">
+                <span>Custo total final</span>
+                <b id="r3d-total">R$ 0,00</b>
+              </div>
+              <div class="calc3d-result-row">
+                <span>Custo por grama</span>
+                <b id="r3d-per-gram">R$ 0,00</b>
+              </div>
+            </div>
+
+            <div class="calc3d-result-group profit-group">
+              <h5>Venda</h5>
+              <div class="calc3d-result-row">
+                <span>Margem de lucro</span>
+                <b id="r3d-margin-label">100%</b>
+              </div>
+              <div class="calc3d-result-row big suggested">
+                <span>Preço sugerido de venda</span>
+                <b id="r3d-suggested">R$ 0,00</b>
+              </div>
+              <div class="calc3d-result-row big profit">
+                <span>Lucro estimado</span>
+                <b id="r3d-profit">R$ 0,00</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ============ HISTÓRICO VIEW ============ -->
@@ -488,46 +680,51 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Peso por peça (g) *</label>
-              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 65" />
+              <label>Gramas de filamento usadas *</label>
+              <input type="number" id="f-fprod-weight" step="0.1" min="0" placeholder="Ex: 240" />
             </div>
 
             <div class="form-group">
-              <label>Custo do filamento (R$/kg) *</label>
-              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 140.00" />
+              <label>Preço do kg do filamento (R$) *</label>
+              <input type="number" id="f-fprod-filament-cost" step="0.01" min="0" placeholder="Ex: 54.00" />
             </div>
             <div class="form-group">
-              <label>
-                Custo por hora de impressão (R$)
-                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                  — energia + depreciação
-                </small>
-              </label>
-              <input type="number" id="f-fprod-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+              <label>Consumo da impressora (Watts)</label>
+              <input type="number" id="f-fprod-printer-watts" step="1" min="0" placeholder="Ex: 200" />
             </div>
 
             <div class="form-group">
-              <label>Tempo — horas</label>
+              <label>Valor da energia (R$/kWh)</label>
+              <input type="number" id="f-fprod-energy-price" step="0.01" min="0" placeholder="Ex: 0.96" />
+            </div>
+            <div class="form-group">
+              <label>Tempo de impressão — horas</label>
               <input type="number" id="f-fprod-hours" min="0" value="0" />
             </div>
+
             <div class="form-group">
-              <label>Tempo — minutos</label>
+              <label>Tempo de impressão — minutos</label>
               <input type="number" id="f-fprod-minutes" min="0" max="59" value="0" />
             </div>
-
-            <div class="form-group full">
-              <label>
-                Custos extras manuais (R$)
-                <small style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0">
-                  — embalagem, cola, imã, parafuso, mão de obra, acabamento
-                </small>
-              </label>
-              <input type="number" id="f-fprod-extras" step="0.01" min="0" placeholder="Ex: 2.50" />
-            </div>
-
             <div class="form-group full">
               <label>Observação (opcional)</label>
-              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, primeira tiragem" />
+              <input type="text" id="f-fprod-note" placeholder="Ex: PLA preto, 0.2mm layer" />
+            </div>
+          </div>
+
+          <!-- Item adicional opcional -->
+          <h4 class="section-title">🔩 Produto adicional (opcional)</h4>
+          <p style="font-size:11px;color:var(--text-dim);margin:-10px 0 14px">
+            Ex: lâmpada, imã, parafuso, cabo, LED, bateria, embalagem especial
+          </p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nome do item</label>
+              <input type="text" id="f-fprod-extra-item-name" placeholder="Ex: Lâmpada LED" />
+            </div>
+            <div class="form-group">
+              <label>Custo do item (R$)</label>
+              <input type="number" id="f-fprod-extra-item-cost" step="0.01" min="0" placeholder="Ex: 8.00" />
             </div>
           </div>
         </div>
@@ -644,24 +841,29 @@
         <!-- Resumo IMPRESSÃO 3D -->
         <div class="calc-box type-3d-only hidden" id="calc-box-3d">
           <div class="calc-section">
-            <h5>🧵 Custos de produção</h5>
+            <h5>🧵 Produção</h5>
             <div><span>Custo do filamento</span><b id="c3-filament">R$ 0,00</b></div>
-            <div><span>Custo do tempo de impressão</span><b id="c3-time">R$ 0,00</b></div>
-            <div><span>Custos extras manuais</span><b id="c3-extras">R$ 0,00</b></div>
-            <div><span>Custo total unitário</span><b id="c3-unit-cost">R$ 0,00</b></div>
+            <div><span>Custo da energia</span><b id="c3-energy">R$ 0,00</b></div>
+            <div><span>Custo base da impressão</span><b id="c3-base">R$ 0,00</b></div>
           </div>
 
           <div class="calc-section">
-            <h5>🖨️ Lote</h5>
-            <div><span>Quantidade produzida</span><b id="c3-qty">0 un</b></div>
-            <div><span>Peso total</span><b id="c3-total-weight">0 g</b></div>
-            <div><span>Tempo total de impressão</span><b id="c3-total-time">—</b></div>
-            <div><span>Custo total do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
+            <h5>🔩 Adicional</h5>
+            <div><span>Item</span><b id="c3-extra-name">—</b></div>
+            <div><span>Custo do item</span><b id="c3-extra-cost">R$ 0,00</b></div>
+          </div>
+
+          <div class="calc-section highlight">
+            <h5>💰 Total</h5>
+            <div><span>Custo total final</span><b id="c3-unit-cost">R$ 0,00</b></div>
+            <div><span>Quantidade</span><b id="c3-qty">0 un</b></div>
+            <div><span>Custo do lote</span><b id="c3-batch-cost">R$ 0,00</b></div>
           </div>
 
           <div class="calc-section highlight">
             <h5>📈 Resultado</h5>
-            <div><span>Líquido por unidade</span><b id="c3-net">R$ 0,00</b></div>
+            <div><span>Preço de venda</span><b id="c3-sell-price">R$ 0,00</b></div>
+            <div><span>Líquido (após taxa)</span><b id="c3-net">R$ 0,00</b></div>
             <div><span>Lucro por unidade</span><b id="c3-profit-unit">R$ 0,00</b></div>
             <div><span>Lucro total</span><b id="c3-profit-total">R$ 0,00</b></div>
             <div><span>Lucro sobre custo</span><b id="c3-profit-cost">0%</b></div>
@@ -669,10 +871,14 @@
           </div>
 
           <div class="calc-section suggest">
-            <h5>🎯 Quanto devo cobrar para <span id="c3-target-label">100%</span> de lucro</h5>
+            <h5>🎯 Preço sugerido para <span id="c3-target-label">100%</span> de lucro</h5>
             <div>
-              <span>Preço sugerido</span>
+              <span>Você deve cobrar</span>
               <b id="c3-suggested">R$ 0,00</b>
+            </div>
+            <div>
+              <span>Lucro estimado</span>
+              <b id="c3-estimated-profit">R$ 0,00</b>
             </div>
             <button type="button" class="btn-apply-suggest" id="btn-apply-suggest-3d">
               Usar este preço
@@ -783,42 +989,54 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Peso por peça (g) *</label>
-            <input type="number" id="f-pr-weight" step="0.1" min="0" required />
+            <label>Gramas de filamento *</label>
+            <input type="number" id="f-pr-weight" step="0.1" min="0" required placeholder="Ex: 240" />
           </div>
 
           <div class="form-group">
-            <label>Custo do filamento (R$/kg) *</label>
-            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required />
+            <label>Preço do kg (R$) *</label>
+            <input type="number" id="f-pr-filament-cost" step="0.01" min="0" required placeholder="Ex: 54.00" />
           </div>
           <div class="form-group">
-            <label>Custo por hora (R$)</label>
-            <input type="number" id="f-pr-hour-cost" step="0.01" min="0" placeholder="Ex: 1.50" />
+            <label>Consumo impressora (Watts)</label>
+            <input type="number" id="f-pr-printer-watts" step="1" min="0" placeholder="Ex: 200" />
           </div>
 
+          <div class="form-group">
+            <label>Valor energia (R$/kWh)</label>
+            <input type="number" id="f-pr-energy-price" step="0.01" min="0" placeholder="Ex: 0.96" />
+          </div>
           <div class="form-group">
             <label>Tempo — horas</label>
             <input type="number" id="f-pr-hours" min="0" value="0" />
           </div>
+
           <div class="form-group">
             <label>Tempo — minutos</label>
             <input type="number" id="f-pr-minutes" min="0" max="59" value="0" />
           </div>
-
-          <div class="form-group full">
-            <label>Custos extras (R$)</label>
-            <input type="number" id="f-pr-extras" step="0.01" min="0" />
-          </div>
-
           <div class="form-group full">
             <label>Observação</label>
             <input type="text" id="f-pr-note" placeholder="Ex: PLA laranja, lote noturno" />
           </div>
+
+          <div class="form-group">
+            <label>Item adicional (nome)</label>
+            <input type="text" id="f-pr-extra-item-name" placeholder="Ex: Lâmpada LED" />
+          </div>
+          <div class="form-group">
+            <label>Custo do item (R$)</label>
+            <input type="number" id="f-pr-extra-item-cost" step="0.01" min="0" placeholder="Ex: 8.00" />
+          </div>
         </div>
 
         <div class="calc-box-mini" id="production-live-calc">
-          <div><span>Custo por unidade</span><b id="pr-unit">R$ 0,00</b></div>
-          <div><span>Custo total do lote</span><b id="pr-total">R$ 0,00</b></div>
+          <div><span>Filamento</span><b id="pr-filament">R$ 0,00</b></div>
+          <div><span>Energia</span><b id="pr-energy">R$ 0,00</b></div>
+          <div><span>Base</span><b id="pr-base">R$ 0,00</b></div>
+          <div><span>Adicional</span><b id="pr-extra">R$ 0,00</b></div>
+          <div><span>Custo/unidade</span><b id="pr-unit">R$ 0,00</b></div>
+          <div><span>Custo lote</span><b id="pr-total">R$ 0,00</b></div>
         </div>
 
         <div class="modal-actions">

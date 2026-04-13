@@ -1,8 +1,14 @@
-# 🛒 CZ Store — Sistema Local de Controle de Produtos
+# 🛒 CZ Store — Sistema de Controle de Produtos
 
-Sistema **100% local** (sem servidor, sem internet obrigatória) para cadastrar
-produtos da sua loja, acompanhar lucro, histórico de compras e se preparar para
-integração futura com marketplaces.
+[![Vercel](https://img.shields.io/badge/Deploy-Vercel-000000?style=flat&logo=vercel)](https://cz-store-sigma.vercel.app)
+[![Version](https://img.shields.io/badge/version-v2.3.0-e50914?style=flat)](https://github.com/Souzafx/cz-store/releases/tag/v2.3.0)
+[![License](https://img.shields.io/badge/license-Personal-orange?style=flat)]()
+
+**🌐 Produção:** https://cz-store-sigma.vercel.app
+
+Sistema para cadastrar produtos da sua loja, acompanhar lucro, histórico de
+compras/produção e se preparar para integração com marketplaces. Funciona
+**100% local** (sem servidor) ou pode ser servido online como site estático.
 
 Tema **dark gamer** (preto + vermelho), interface em catálogo de cards,
 importação de planilha Excel e importação automática por link
