@@ -192,6 +192,13 @@ function switchToView(view) {
     calc3dView.style.display = view === "calc3d" ? "" : "none";
   }
 
+  // Esconde botão "+ Novo Produto" em views que não são de catálogo
+  const btnNew = document.getElementById("btn-new");
+  if (btnNew) {
+    btnNew.style.display = (view === "produtos" || view === "impressao3d")
+      ? "" : "none";
+  }
+
   // Título e subtítulo no topo
   const [t, s] = VIEW_TITLES[view];
   $("#view-title").textContent = t;
